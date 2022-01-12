@@ -26,3 +26,27 @@ impl PacketWrite for LoginStart {
         Ok(())
     }
 }
+
+#[derive(Debug, Packet)]
+#[id(0)]
+pub struct Disconnect {
+    pub reason: String,
+}
+
+impl PacketRead for Disconnect {
+    fn read_data<R: Read>(reader: &mut R) -> Result<Disconnect> {
+        let (reason, _) = reader.read_string()?;
+
+        Ok(Disconnect {
+            reason,
+        })
+    }
+}
+
+impl PacketWrite for Disconnect {
+    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
+        packet.write_string(&self.reason)?;
+
+        Ok(())
+    }
+}

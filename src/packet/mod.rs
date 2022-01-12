@@ -12,7 +12,7 @@ pub use builder::PacketBuilder;
 
 pub use handshaking::{ForgeHandshake, Handshake};
 pub use status::{Request, Response, Ping, Pong};
-pub use login::LoginStart;
+pub use login::{LoginStart, Disconnect};
 
 pub trait Packet {
     const PACKET_ID: i32;
