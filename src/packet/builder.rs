@@ -1,4 +1,4 @@
-use crate::WriteExt;
+use crate::{types::McWrite, WriteExt};
 use std::io::{Result, Write};
 
 macro_rules! builder_write_type {
@@ -11,7 +11,7 @@ macro_rules! builder_write_type {
 
 #[derive(Debug)]
 pub struct PacketBuilder {
-    id: i32,
+    _id: i32,
     buffer: Vec<u8>,
 }
 
@@ -20,7 +20,11 @@ impl PacketBuilder {
         let mut buffer = Vec::new();
         buffer.write_varint(id)?;
 
-        Ok(PacketBuilder { id, buffer })
+        Ok(PacketBuilder { _id: id, buffer })
+    }
+
+    pub fn write<T: McWrite>(&mut self, value: &T) -> Result<()> {
+        value.write(&mut self.buffer)
     }
 
     builder_write_type!(write_boolean, bool);
@@ -38,7 +42,7 @@ impl PacketBuilder {
         self.buffer.write_string(value)
     }
 
-    pub fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_varint(self.buffer.len() as i32)?;
         writer.write_all(&self.buffer)
     }

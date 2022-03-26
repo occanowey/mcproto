@@ -1,52 +1,24 @@
 use super::{Packet, PacketBuilder, PacketRead, PacketWrite};
-use crate::ReadExt;
+use crate::types::McRead;
+use packet_derive::{Packet, PacketRead, PacketWrite};
 use std::io::{Read, Result};
-use packet_derive::Packet;
 
-#[derive(Debug, Packet)]
-#[id(0)]
-pub struct LoginStart {
-    pub username: String,
-}
+//
+// Clientbound
+//
 
-impl PacketRead for LoginStart {
-    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<LoginStart> {
-        let (username, _) = reader.read_string()?;
-
-        Ok(LoginStart {
-            username,
-        })
-    }
-}
-
-impl PacketWrite for LoginStart {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write_string(&self.username)?;
-
-        Ok(())
-    }
-}
-
-#[derive(Debug, Packet)]
-#[id(0)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
+#[id(0x00)]
 pub struct Disconnect {
     pub reason: String,
 }
 
-impl PacketRead for Disconnect {
-    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Disconnect> {
-        let (reason, _) = reader.read_string()?;
+//
+// Serverbound
+//
 
-        Ok(Disconnect {
-            reason,
-        })
-    }
-}
-
-impl PacketWrite for Disconnect {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write_string(&self.reason)?;
-
-        Ok(())
-    }
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
+#[id(0x00)]
+pub struct LoginStart {
+    pub username: String,
 }

@@ -34,7 +34,7 @@ pub trait PacketWrite: Packet {
     fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
         let mut packet = PacketBuilder::new(Self::PACKET_ID)?;
         self.write_data(&mut packet)?;
-        Ok(packet.write(writer)?)
+        packet.write_to(writer)
     }
 
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()>;

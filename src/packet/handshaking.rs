@@ -1,7 +1,11 @@
 use super::{Packet, PacketBuilder, PacketRead, PacketWrite};
-use crate::ReadExt;
-use std::io::{Read, Result};
+use crate::types::{v32, McRead};
 use packet_derive::Packet;
+use std::io::{Read, Result};
+
+//
+// Serverbound
+//
 
 // i hate it here
 // https://wiki.vg/Minecraft_Forge_Handshake
@@ -16,10 +20,10 @@ pub enum ForgeHandshake {
 
 impl ForgeHandshake {
     fn separate_address(address: String) -> (String, Option<Self>) {
-        if !address.contains("\0") {
+        if !address.contains('\0') {
             (address, None)
         } else {
-            let (address, fml) = address.split_once("\0").unwrap();
+            let (address, fml) = address.split_once('\0').unwrap();
 
             let forge = match fml {
                 "FML\0" => Some(Self::Version1),
@@ -42,12 +46,12 @@ impl ForgeHandshake {
 }
 
 #[derive(Debug, Packet)]
-#[id(0)]
+#[id(0x00)]
 pub struct Handshake {
-    pub protocol_version: i32,
+    pub protocol_version: v32,
     pub server_address: String,
     pub server_port: u16,
-    pub next_state: i32,
+    pub next_state: v32,
 
     pub forge: Option<ForgeHandshake>,
 }
@@ -65,10 +69,10 @@ impl Handshake {
 impl PacketRead for Handshake {
     fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Handshake> {
         // todo: maybe handle legacy ping?
-        let (protocol_version, _) = reader.read_varint()?;
-        let (server_address, _) = reader.read_string()?;
-        let server_port = reader.read_ushort()?;
-        let (next_state, _) = reader.read_varint()?;
+        let protocol_version = v32::read(reader)?.0;
+        let server_address = String::read(reader)?.0;
+        let server_port = u16::read(reader)?.0;
+        let next_state = v32::read(reader)?.0;
 
         let (server_address, forge) = ForgeHandshake::separate_address(server_address);
 
@@ -84,11 +88,9 @@ impl PacketRead for Handshake {
 
 impl PacketWrite for Handshake {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write_varint(self.protocol_version)?;
-        packet.write_string(self.modified_address())?;
-        packet.write_ushort(self.server_port)?;
-        packet.write_varint(self.next_state)?;
-
-        Ok(())
+        packet.write(&self.protocol_version)?;
+        packet.write(&self.modified_address())?;
+        packet.write(&self.server_port)?;
+        packet.write(&self.next_state)
     }
 }
