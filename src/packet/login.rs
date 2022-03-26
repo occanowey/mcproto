@@ -10,7 +10,7 @@ pub struct LoginStart {
 }
 
 impl PacketRead for LoginStart {
-    fn read_data<R: Read>(reader: &mut R) -> Result<LoginStart> {
+    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<LoginStart> {
         let (username, _) = reader.read_string()?;
 
         Ok(LoginStart {
@@ -34,7 +34,7 @@ pub struct Disconnect {
 }
 
 impl PacketRead for Disconnect {
-    fn read_data<R: Read>(reader: &mut R) -> Result<Disconnect> {
+    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Disconnect> {
         let (reason, _) = reader.read_string()?;
 
         Ok(Disconnect {

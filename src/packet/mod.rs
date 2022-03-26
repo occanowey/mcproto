@@ -20,18 +20,18 @@ pub trait Packet {
 
 pub trait PacketRead: Packet + Sized {
     fn read<R: Read>(reader: &mut R) -> Result<Self> {
-        let _length = reader.read_varint()?;
+        let (length, _) = reader.read_varint()?;
 
-        let (id, _) = reader.read_varint()?;
+        let (id, id_len) = reader.read_varint()?;
         if id != Self::PACKET_ID {
             return Err(Error::new(ErrorKind::Other, "Invalid packet id"));
         }
 
-        Self::read_data(reader)
+        Self::read_data(reader, length as usize - id_len)
     }
 
     /// Read fields after length & id
-    fn read_data<R: Read>(reader: &mut R) -> Result<Self>;
+    fn read_data<R: Read>(reader: &mut R, data_length: usize) -> Result<Self>;
 }
 
 pub trait PacketWrite: Packet {

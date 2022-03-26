@@ -63,7 +63,7 @@ impl Handshake {
 }
 
 impl PacketRead for Handshake {
-    fn read_data<R: Read>(reader: &mut R) -> Result<Handshake> {
+    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Handshake> {
         // todo: maybe handle legacy ping?
         let (protocol_version, _) = reader.read_varint()?;
         let (server_address, _) = reader.read_string()?;
