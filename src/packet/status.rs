@@ -1,4 +1,4 @@
-use super::{Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::types::McRead;
 use packet_derive::{Packet, PacketRead, PacketWrite};
 use std::io::{Read, Result};
@@ -6,6 +6,11 @@ use std::io::{Read, Result};
 //
 // Clientbound
 //
+
+impl_packet_enum!(s2c {
+    0x00 => Response,
+    0x01 => Pong,
+});
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
@@ -22,6 +27,11 @@ pub struct Pong {
 //
 // Serverbound
 //
+
+impl_packet_enum!(c2s {
+    0x00 => Request,
+    0x01 => Ping,
+});
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]

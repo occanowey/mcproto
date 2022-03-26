@@ -10,6 +10,33 @@ use crate::ReadExt;
 
 pub use builder::PacketBuilder;
 
+macro_rules! impl_packet_enum {
+    ($side:ident {$($id:literal => $packet:ident),* $(,)?}) => {
+        pub mod $side {
+            use crate::packet::PacketRead;
+            use std::io::Result;
+
+            pub enum Packet {
+                $($packet(super::$packet),)*
+
+                Unknown(i32)
+            }
+
+            impl Packet {
+                pub fn from_id_data(id: i32, data: &mut &[u8]) -> Result<Self> {
+                    match id {
+                        $($id => super::$packet::read_data(data, data.len()).map(Self::$packet),)*
+
+                        other => Ok(Self::Unknown(other)),
+                    }
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use impl_packet_enum;
+
 pub trait Packet {
     const PACKET_ID: i32;
 }

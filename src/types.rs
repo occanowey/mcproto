@@ -207,7 +207,7 @@ impl McWrite for UUID {
 #[derive(Debug)]
 pub struct LengthPrefixByteArray(pub Vec<u8>);
 
-impl <'f> From<&'f [u8]> for LengthPrefixByteArray {
+impl<'f> From<&'f [u8]> for LengthPrefixByteArray {
     fn from(bytes: &'f [u8]) -> Self {
         bytes.to_vec().into()
     }
@@ -226,7 +226,10 @@ impl McRead for LengthPrefixByteArray {
         let mut buffer = vec![0; *buffer_len as usize];
         reader.read_exact(&mut buffer)?;
 
-        Ok((LengthPrefixByteArray(buffer), *buffer_len as usize + len_len))
+        Ok((
+            LengthPrefixByteArray(buffer),
+            *buffer_len as usize + len_len,
+        ))
     }
 }
 

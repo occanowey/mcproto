@@ -1,4 +1,4 @@
-use super::{Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::types::{v32, McRead};
 use packet_derive::Packet;
 use std::io::{Read, Result};
@@ -6,6 +6,10 @@ use std::io::{Read, Result};
 //
 // Serverbound
 //
+
+impl_packet_enum!(c2s {
+    0x00 => Handshake
+});
 
 // i hate it here
 // https://wiki.vg/Minecraft_Forge_Handshake
@@ -91,7 +95,7 @@ impl PacketRead for Handshake {
         let server_address = String::read(reader)?.0;
         let server_port = u16::read(reader)?.0;
 
-        let next_state = match v32::read(reader)?.0.0 {
+        let next_state = match v32::read(reader)?.0 .0 {
             1 => NextState::Status,
             2 => NextState::Login,
             other => NextState::Unknown(other),

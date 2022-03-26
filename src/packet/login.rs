@@ -1,6 +1,6 @@
-use super::{Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
-    types::{v32, McRead, LengthPrefixByteArray, Identifier, UUID},
+    types::{v32, Identifier, LengthPrefixByteArray, McRead, UUID},
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -9,6 +9,14 @@ use std::io::{Read, Result};
 //
 // Clientbound
 //
+
+impl_packet_enum!(s2c {
+    0x00 => Disconnect,
+    0x01 => EncryptionRequest,
+    0x02 => LoginSuccess,
+    0x03 => SetCompression,
+    0x04 => LoginPluginRequest,
+});
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
@@ -72,6 +80,12 @@ impl PacketWrite for LoginPluginRequest {
 //
 // Serverbound
 //
+
+impl_packet_enum!(c2s {
+    0x00 => LoginStart,
+    0x01 => EncryptionResponse,
+    0x02 => LoginPluginResponse,
+});
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]

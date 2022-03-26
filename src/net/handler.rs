@@ -1,4 +1,4 @@
-use std::io::Error as IoError;
+use std::io::{Error as IoError, Read};
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
@@ -6,7 +6,7 @@ use crate::net::state::{
     Handshaking, LoginState, NetworkSide, NetworkState, SidedStateReadPacket,
     SidedStateWritePacket, StatusState,
 };
-use crate::PacketBuilder;
+use crate::{PacketBuilder, ReadExt};
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(stream: TcpStream) -> NetworkHandler<D, Handshaking> {
@@ -25,7 +25,27 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     pub fn read<P: SidedStateReadPacket<D, S>>(&mut self) -> Result<P, IoError> {
-        P::read(&mut self.stream)
+        let (_, data) = self.read_raw_data()?;
+        self.read_from_data(&mut data.as_slice())
+    }
+
+    pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>), IoError> {
+        let (length, _) = self.stream.read_varint()?;
+
+        let mut buffer = vec![0; length as usize];
+        self.stream.read_exact(&mut buffer)?;
+
+        let (id, id_len) = buffer.as_slice().read_varint()?;
+        buffer.drain(0..id_len);
+
+        Ok((id, buffer))
+    }
+
+    pub fn read_from_data<P: SidedStateReadPacket<D, S>>(
+        &self,
+        data: &mut &[u8],
+    ) -> Result<P, IoError> {
+        P::read_data(data, data.len())
     }
 
     pub fn write<P: SidedStateWritePacket<D, S>>(&mut self, packet: P) -> Result<(), IoError> {
