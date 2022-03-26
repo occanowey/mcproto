@@ -71,12 +71,10 @@ impl_rprimitive!(f64, 8);
 // String
 impl McRead for String {
     fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        let (string_len, len_len) = v32::read(reader)?;
-        let mut buffer = vec![0; *string_len as usize];
-        reader.read_exact(&mut buffer)?;
-        let string = String::from_utf8(buffer).unwrap();
+        let (buffer, len) = LengthPrefixByteArray::read(reader)?;
+        let string = String::from_utf8(buffer.0).unwrap();
 
-        Ok((string, *string_len as usize + len_len))
+        Ok((string, len))
     }
 }
 
@@ -90,6 +88,23 @@ impl McWrite for String {
 // Chat
 
 // Identifier
+// TODO: make sure it's a valid ident?
+#[derive(Debug)]
+pub struct Identifier(pub String);
+
+impl McRead for Identifier {
+    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+        let (data, length) = String::read(reader)?;
+
+        Ok((Identifier(data), length))
+    }
+}
+
+impl McWrite for Identifier {
+    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+        self.0.write(writer)
+    }
+}
 
 // VarInt
 #[derive(Debug)]
@@ -163,6 +178,24 @@ impl McWrite for v32 {
 // Angle
 
 // UUID
+// TODO: use proper uuid struct
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct UUID(pub u128);
+
+impl McRead for UUID {
+    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+        let mut buffer = [0; 16];
+        reader.read_exact(&mut buffer)?;
+        Ok((UUID(u128::from_be_bytes(buffer)), 16))
+    }
+}
+
+impl McWrite for UUID {
+    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+        writer.write_all(&self.0.to_be_bytes())
+    }
+}
 
 // Optional X
 
@@ -171,3 +204,35 @@ impl McWrite for v32 {
 // X Enum
 
 // Byte Array
+#[derive(Debug)]
+pub struct LengthPrefixByteArray(pub Vec<u8>);
+
+impl <'f> From<&'f [u8]> for LengthPrefixByteArray {
+    fn from(bytes: &'f [u8]) -> Self {
+        bytes.to_vec().into()
+    }
+}
+
+impl From<Vec<u8>> for LengthPrefixByteArray {
+    fn from(inner: Vec<u8>) -> Self {
+        Self(inner)
+    }
+}
+
+impl McRead for LengthPrefixByteArray {
+    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+        let (buffer_len, len_len) = v32::read(reader)?;
+
+        let mut buffer = vec![0; *buffer_len as usize];
+        reader.read_exact(&mut buffer)?;
+
+        Ok((LengthPrefixByteArray(buffer), *buffer_len as usize + len_len))
+    }
+}
+
+impl McWrite for LengthPrefixByteArray {
+    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+        v32(self.0.len() as i32).write(writer)?;
+        writer.write_all(&self.0)
+    }
+}

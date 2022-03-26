@@ -51,9 +51,7 @@ pub trait MinecraftReadExt: Read {
     #[inline]
     fn read_string(&mut self) -> Result<(String, usize)> {
         let (string_len, len_len) = self.read_varint()?;
-        let mut buffer = vec![0; string_len as usize];
-        self.read_exact(&mut buffer)?;
-        let string = String::from_utf8(buffer).unwrap();
+        let string = String::from_utf8(self.read_byte_array(string_len as usize)?).unwrap();
 
         Ok((string, string_len as usize + len_len))
     }
@@ -106,4 +104,10 @@ pub trait MinecraftReadExt: Read {
     // X Enum
 
     // Byte Array
+    #[inline]
+    fn read_byte_array(&mut self, length: usize) -> Result<Vec<u8>> {
+        let mut buffer = vec![0; length];
+        self.read_exact(&mut buffer)?;
+        Ok(buffer)
+    }
 }

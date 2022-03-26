@@ -38,6 +38,8 @@ impl PacketBuilder {
     builder_write_type!(write_double, f64);
     builder_write_type!(write_varint, i32);
 
+    builder_write_type!(write_byte_array, &[u8]);
+
     pub fn write_string<S: Into<String>>(&mut self, value: S) -> Result<()> {
         self.buffer.write_string(value)
     }

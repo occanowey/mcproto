@@ -95,4 +95,8 @@ pub trait MinecraftWriteExt: Write {
     // X Enum
 
     // Byte Array
+    #[inline]
+    fn write_byte_array(&mut self, value: &[u8]) -> Result<()> {
+        self.write_all(value)
+    }
 }
