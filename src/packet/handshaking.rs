@@ -45,13 +45,31 @@ impl ForgeHandshake {
     }
 }
 
+#[derive(Debug)]
+pub enum NextState {
+    Status,
+    Login,
+
+    Unknown(i32),
+}
+
+impl NextState {
+    fn to_v32(&self) -> v32 {
+        match self {
+            NextState::Status => 1.into(),
+            NextState::Login => 2.into(),
+            NextState::Unknown(other) => (*other).into(),
+        }
+    }
+}
+
 #[derive(Debug, Packet)]
 #[id(0x00)]
 pub struct Handshake {
     pub protocol_version: v32,
     pub server_address: String,
     pub server_port: u16,
-    pub next_state: v32,
+    pub next_state: NextState,
 
     pub forge: Option<ForgeHandshake>,
 }
@@ -72,7 +90,12 @@ impl PacketRead for Handshake {
         let protocol_version = v32::read(reader)?.0;
         let server_address = String::read(reader)?.0;
         let server_port = u16::read(reader)?.0;
-        let next_state = v32::read(reader)?.0;
+
+        let next_state = match v32::read(reader)?.0.0 {
+            1 => NextState::Status,
+            2 => NextState::Login,
+            other => NextState::Unknown(other),
+        };
 
         let (server_address, forge) = ForgeHandshake::separate_address(server_address);
 
@@ -91,6 +114,6 @@ impl PacketWrite for Handshake {
         packet.write(&self.protocol_version)?;
         packet.write(&self.modified_address())?;
         packet.write(&self.server_port)?;
-        packet.write(&self.next_state)
+        packet.write(&self.next_state.to_v32())
     }
 }
