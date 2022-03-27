@@ -16,6 +16,7 @@ macro_rules! impl_packet_enum {
             use crate::packet::PacketRead;
             use std::io::Result;
 
+            #[derive(Debug)]
             pub enum Packet {
                 $($packet(super::$packet),)*
 

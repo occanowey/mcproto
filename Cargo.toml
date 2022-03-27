@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 packet_derive = { path = "packet_derive" }
+
+flate2 = "1.0"

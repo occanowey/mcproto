@@ -1,3 +1,5 @@
+use flate2::{write::ZlibEncoder, Compression};
+
 use crate::{types::McWrite, WriteExt};
 use std::io::{Result, Write};
 
@@ -47,5 +49,27 @@ impl PacketBuilder {
     pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_varint(self.buffer.len() as i32)?;
         writer.write_all(&self.buffer)
+    }
+
+    pub fn write_compressed<W: Write>(&self, writer: &mut W, threshold: usize) -> Result<()> {
+        let mut compressed_buffer = Vec::new();
+        println!("write");
+
+        let compressed_buffer = if self.buffer.len() >= threshold {
+            println!("write compressed");
+            compressed_buffer.write_varint(self.buffer.len() as i32)?;
+
+            let mut encoder = ZlibEncoder::new(compressed_buffer, Compression::default());
+            encoder.write_all(&self.buffer)?;
+
+            encoder.finish()?
+        } else {
+            compressed_buffer.write_varint(0)?;
+            compressed_buffer.write_all(&self.buffer)?;
+            compressed_buffer
+        };
+
+        writer.write_varint(compressed_buffer.len() as i32)?;
+        writer.write_all(&compressed_buffer)
     }
 }
