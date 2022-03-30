@@ -11,3 +11,12 @@ uuid = "0.8"
 
 # -- compression
 flate2 = "1.0"
+
+# -- encryption
+# must stay 0.7.1 because AsyncStreamCipher functions in newer versions
+# no longer take a mutable reference, instead taking ownership.
+# doesn't really work well with continuous ciphers...
+# https://docs.rs/cipher/0.4.2/cipher/trait.AsyncStreamCipher.html
+# https://github.com/RustCrypto/traits/issues/964
+aes = "0.7.1"
+cfb8 = "0.7.1"

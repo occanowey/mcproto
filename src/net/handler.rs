@@ -2,6 +2,9 @@ use std::io::{Error as IoError, Read};
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
+use aes::cipher::NewCipher;
+use aes::Aes128;
+use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 
 use crate::net::state::{
@@ -9,15 +12,27 @@ use crate::net::state::{
 };
 use crate::{net::side::NetworkSide, PacketBuilder, ReadExt};
 
+use super::encryption::{EncryptableBufReader, EncryptableWriter};
+
+pub type Cipher = Cfb8<Aes128>;
+
 // would rather this be in network handler but generics makes that difficult if not impossible
-pub fn handler_from_stream<D: NetworkSide>(stream: TcpStream) -> NetworkHandler<D, Handshaking> {
-    NetworkHandler {
+pub fn handler_from_stream<D: NetworkSide>(
+    stream: TcpStream,
+) -> Result<NetworkHandler<D, Handshaking>, IoError> {
+    let reader = EncryptableBufReader::wrap(stream.try_clone()?);
+    let writer = EncryptableWriter::wrap(stream.try_clone()?);
+
+    Ok(NetworkHandler {
         stream,
         _side: PhantomData,
         _state: PhantomData,
 
         compression: None,
-    }
+
+        reader,
+        writer,
+    })
 }
 
 pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
@@ -26,6 +41,9 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
     _state: PhantomData<S>,
 
     compression: Option<usize>,
+
+    reader: EncryptableBufReader<TcpStream, Cipher>,
+    writer: EncryptableWriter<TcpStream, Cipher>,
 }
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
@@ -35,11 +53,11 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     }
 
     pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>), IoError> {
-        let (length, _) = self.stream.read_varint()?;
+        let (length, _) = self.reader.read_varint()?;
 
         // allocate and read first length (packet length or compressed length)
         let mut buffer = vec![0; length as usize];
-        self.stream.read_exact(&mut buffer)?;
+        self.reader.read_exact(&mut buffer)?;
 
         let mut buffer = if self.compression.is_some() {
             let (data_length, dl_len) = buffer.as_slice().read_varint()?;
@@ -77,14 +95,22 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         packet.write_data(&mut builder)?;
 
         if let Some(threshold) = self.compression {
-            builder.write_compressed(&mut self.stream, threshold)
+            builder.write_compressed(&mut self.writer, threshold)
         } else {
-            builder.write_to(&mut self.stream)
+            builder.write_to(&mut self.writer)
         }
     }
 
     pub fn set_compression_threshold<T: Into<Option<usize>>>(&mut self, threshold: T) {
         self.compression = threshold.into();
+    }
+
+    pub fn set_encryption_secret(&mut self, secret: &[u8]) {
+        let read_cipher = Cipher::new_from_slices(secret, secret).unwrap();
+        self.reader.set_cipher(read_cipher);
+
+        let write_cipher = Cipher::new_from_slices(secret, secret).unwrap();
+        self.writer.set_cipher(write_cipher);
     }
 
     pub fn close(self) -> Result<(), IoError> {
@@ -104,6 +130,9 @@ macro_rules! same_fields_different_generics {
             _state: PhantomData,
 
             compression: $self.compression,
+
+            reader: $self.reader,
+            writer: $self.writer,
         }
     };
 }
