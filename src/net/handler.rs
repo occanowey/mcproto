@@ -8,7 +8,8 @@ use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 
 use crate::net::state::{
-    Handshaking, LoginState, NetworkState, SidedStateReadPacket, SidedStateWritePacket, StatusState, PlayState
+    Handshaking, LoginState, NetworkState, PlayState, SidedStateReadPacket, SidedStateWritePacket,
+    StatusState,
 };
 use crate::{net::side::NetworkSide, PacketBuilder, ReadExt};
 

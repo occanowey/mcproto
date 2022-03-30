@@ -2,17 +2,20 @@ use crate::{
     net::side::{Client, Server},
     packet::{
         handshaking::Handshake,
-        status::*,
         login::{self, *},
         play,
+        status::*,
     },
 };
 
 pub trait NetworkState {}
 
 mod sealed {
-    use crate::{packet::{PacketRead, PacketWrite}, net::side::NetworkSide};
     use super::NetworkState;
+    use crate::{
+        net::side::NetworkSide,
+        packet::{PacketRead, PacketWrite},
+    };
 
     pub trait SidedStateReadPacket<Side: NetworkSide, State: NetworkState>: PacketRead {}
     pub trait SidedStateWritePacket<Side: NetworkSide, State: NetworkState>: PacketWrite {}

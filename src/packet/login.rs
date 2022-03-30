@@ -4,8 +4,8 @@ use crate::{
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
-use uuid::Uuid;
 use std::io::{Read, Result};
+use uuid::Uuid;
 
 //
 // Clientbound
