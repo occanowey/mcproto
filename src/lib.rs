@@ -2,6 +2,7 @@ mod read_ext;
 mod write_ext;
 
 pub mod types;
+pub use uuid;
 
 pub mod packet;
 

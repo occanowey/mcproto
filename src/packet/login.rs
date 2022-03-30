@@ -1,9 +1,10 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
-    types::{v32, Identifier, LengthPrefixByteArray, McRead, UUID},
+    types::{v32, Identifier, LengthPrefixByteArray, McRead},
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
+use uuid::Uuid;
 use std::io::{Read, Result};
 
 //
@@ -35,7 +36,7 @@ pub struct EncryptionRequest {
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x02)]
 pub struct LoginSuccess {
-    pub uuid: UUID,
+    pub uuid: Uuid,
     pub username: String,
 }
 

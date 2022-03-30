@@ -3,6 +3,8 @@ use std::{
     ops::Deref,
 };
 
+use uuid::Uuid;
+
 pub trait McRead {
     fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)>
     where
@@ -178,22 +180,18 @@ impl McWrite for v32 {
 // Angle
 
 // UUID
-// TODO: use proper uuid struct
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
-pub struct UUID(pub u128);
-
-impl McRead for UUID {
+impl McRead for Uuid {
     fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
         let mut buffer = [0; 16];
         reader.read_exact(&mut buffer)?;
-        Ok((UUID(u128::from_be_bytes(buffer)), 16))
+
+        Ok((Uuid::from_bytes(buffer), buffer.len()))
     }
 }
 
-impl McWrite for UUID {
+impl McWrite for Uuid {
     fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        writer.write_all(&self.0.to_be_bytes())
+        writer.write_all(self.as_bytes())
     }
 }
 
