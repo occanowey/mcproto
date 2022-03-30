@@ -1,4 +1,12 @@
-use crate::{packet::{handshaking::Handshake, login::*, status::*}, net::side::{Server, Client}};
+use crate::{
+    net::side::{Client, Server},
+    packet::{
+        handshaking::Handshake,
+        status::*,
+        login::{self, *},
+        play,
+    },
+};
 
 pub trait NetworkState {}
 
@@ -49,7 +57,7 @@ impl_sided_state_packet!(c2s, StatusState, Ping);
 pub struct LoginState;
 impl NetworkState for LoginState {}
 
-impl_sided_state_packet!(s2c, LoginState, Disconnect);
+impl_sided_state_packet!(s2c, LoginState, login::Disconnect);
 impl_sided_state_packet!(s2c, LoginState, EncryptionRequest);
 impl_sided_state_packet!(s2c, LoginState, LoginSuccess);
 impl_sided_state_packet!(s2c, LoginState, SetCompression);
@@ -58,3 +66,11 @@ impl_sided_state_packet!(s2c, LoginState, LoginPluginRequest);
 impl_sided_state_packet!(c2s, LoginState, LoginStart);
 impl_sided_state_packet!(c2s, LoginState, EncryptionResponse);
 impl_sided_state_packet!(c2s, LoginState, LoginPluginResponse);
+
+//
+// Play State
+//
+pub struct PlayState;
+impl NetworkState for PlayState {}
+
+impl_sided_state_packet!(s2c, PlayState, play::Disconnect);

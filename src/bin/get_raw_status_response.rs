@@ -31,7 +31,7 @@ fn main() -> Result<(), Error> {
         .unwrap();
 
     let server = TcpStream::connect(address)?;
-    let mut handler = handler_from_stream(server);
+    let mut handler = handler_from_stream(server)?;
 
     handler.write(Handshake {
         protocol_version: 110.into(),

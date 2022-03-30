@@ -8,7 +8,7 @@ use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 
 use crate::net::state::{
-    Handshaking, LoginState, NetworkState, SidedStateReadPacket, SidedStateWritePacket, StatusState,
+    Handshaking, LoginState, NetworkState, SidedStateReadPacket, SidedStateWritePacket, StatusState, PlayState
 };
 use crate::{net::side::NetworkSide, PacketBuilder, ReadExt};
 
@@ -143,6 +143,12 @@ impl<D: NetworkSide> NetworkHandler<D, Handshaking> {
     }
 
     pub fn login(self) -> NetworkHandler<D, LoginState> {
+        same_fields_different_generics!(self)
+    }
+}
+
+impl<D: NetworkSide> NetworkHandler<D, LoginState> {
+    pub fn play(self) -> NetworkHandler<D, PlayState> {
         same_fields_different_generics!(self)
     }
 }
