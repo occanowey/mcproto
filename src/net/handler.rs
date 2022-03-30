@@ -5,10 +5,9 @@ use std::net::{Shutdown, TcpStream};
 use flate2::read::ZlibDecoder;
 
 use crate::net::state::{
-    Handshaking, LoginState, NetworkSide, NetworkState, SidedStateReadPacket,
-    SidedStateWritePacket, StatusState,
+    Handshaking, LoginState, NetworkState, SidedStateReadPacket, SidedStateWritePacket, StatusState,
 };
-use crate::{PacketBuilder, ReadExt};
+use crate::{net::side::NetworkSide, PacketBuilder, ReadExt};
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(stream: TcpStream) -> NetworkHandler<D, Handshaking> {

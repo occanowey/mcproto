@@ -1,24 +1,16 @@
-use crate::packet::{handshaking::Handshake, login::*, status::*};
+use crate::{packet::{handshaking::Handshake, login::*, status::*}, net::side::{Server, Client}};
 
-pub(crate) use self::sealed::*;
+pub trait NetworkState {}
 
 mod sealed {
-    use crate::packet::{PacketRead, PacketWrite};
+    use crate::{packet::{PacketRead, PacketWrite}, net::side::NetworkSide};
+    use super::NetworkState;
 
-    pub trait NetworkState {}
-
-    pub trait NetworkSide {}
-
-    pub trait SidedStateReadPacket<Side, State>: PacketRead {}
-    pub trait SidedStateWritePacket<Side, State>: PacketWrite {}
+    pub trait SidedStateReadPacket<Side: NetworkSide, State: NetworkState>: PacketRead {}
+    pub trait SidedStateWritePacket<Side: NetworkSide, State: NetworkState>: PacketWrite {}
 }
 
-pub struct Server;
-impl NetworkSide for Server {}
-
-pub struct Client;
-impl NetworkSide for Client {}
-
+pub(crate) use self::sealed::*;
 macro_rules! impl_sided_state_packet {
     (c2s, $state: ty, $packet: ty) => {
         impl SidedStateReadPacket<Server, $state> for $packet {}
