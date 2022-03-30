@@ -48,8 +48,12 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     pub fn read<P: SidedStateReadPacket<D, S>>(&mut self) -> Result<P, IoError> {
-        let (_, data) = self.read_raw_data()?;
-        self.read_from_data(&mut data.as_slice())
+        let (id, data) = self.read_raw_data()?;
+        if id != P::PACKET_ID {
+            return Err(IoError::new(std::io::ErrorKind::Other, "Invalid packet id"));
+        }
+
+        P::read_data(&mut data.as_slice(), data.len())
     }
 
     pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>), IoError> {
@@ -81,13 +85,6 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         buffer.drain(0..id_len);
 
         Ok((id, buffer))
-    }
-
-    pub fn read_from_data<P: SidedStateReadPacket<D, S>>(
-        &self,
-        data: &mut &[u8],
-    ) -> Result<P, IoError> {
-        P::read_data(data, data.len())
     }
 
     pub fn write<P: SidedStateWritePacket<D, S>>(&mut self, packet: P) -> Result<(), IoError> {
