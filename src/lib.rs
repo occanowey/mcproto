@@ -1,3 +1,5 @@
+pub mod error;
+
 mod read_ext;
 mod write_ext;
 

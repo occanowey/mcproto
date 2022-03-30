@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, Read};
+use std::io::Read;
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
@@ -7,11 +7,18 @@ use aes::Aes128;
 use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 
-use crate::net::state::{
-    Handshaking, LoginState, NetworkState, PlayState, SidedStateReadPacket, SidedStateWritePacket,
-    StatusState,
+use crate::error::Error;
+use crate::{
+    error::Result,
+    net::{
+        side::NetworkSide,
+        state::{
+            Handshaking, LoginState, NetworkState, PlayState, SidedStateReadPacket,
+            SidedStateWritePacket, StatusState,
+        },
+    },
+    PacketBuilder, ReadExt,
 };
-use crate::{net::side::NetworkSide, PacketBuilder, ReadExt};
 
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
 
@@ -20,7 +27,7 @@ pub type Cipher = Cfb8<Aes128>;
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(
     stream: TcpStream,
-) -> Result<NetworkHandler<D, Handshaking>, IoError> {
+) -> Result<NetworkHandler<D, Handshaking>> {
     let reader = EncryptableBufReader::wrap(stream.try_clone()?);
     let writer = EncryptableWriter::wrap(stream.try_clone()?);
 
@@ -48,16 +55,16 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 }
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
-    pub fn read<P: SidedStateReadPacket<D, S>>(&mut self) -> Result<P, IoError> {
+    pub fn read<P: SidedStateReadPacket<D, S>>(&mut self) -> Result<P> {
         let (id, data) = self.read_raw_data()?;
         if id != P::PACKET_ID {
-            return Err(IoError::new(std::io::ErrorKind::Other, "Invalid packet id"));
+            return Err(Error::IncorectPacketId(P::PACKET_ID, id));
         }
 
         P::read_data(&mut data.as_slice(), data.len())
     }
 
-    pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>), IoError> {
+    pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>)> {
         let (length, _) = self.reader.read_varint()?;
 
         // allocate and read first length (packet length or compressed length)
@@ -88,14 +95,14 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         Ok((id, buffer))
     }
 
-    pub fn write<P: SidedStateWritePacket<D, S>>(&mut self, packet: P) -> Result<(), IoError> {
+    pub fn write<P: SidedStateWritePacket<D, S>>(&mut self, packet: P) -> Result<()> {
         let mut builder = PacketBuilder::new(P::PACKET_ID)?;
         packet.write_data(&mut builder)?;
 
         if let Some(threshold) = self.compression {
-            builder.write_compressed(&mut self.writer, threshold)
+            Ok(builder.write_compressed(&mut self.writer, threshold)?)
         } else {
-            builder.write_to(&mut self.writer)
+            Ok(builder.write_to(&mut self.writer)?)
         }
     }
 
@@ -111,8 +118,8 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         self.writer.set_cipher(write_cipher);
     }
 
-    pub fn close(self) -> Result<(), IoError> {
-        self.stream.shutdown(Shutdown::Both)
+    pub fn close(self) -> Result<()> {
+        Ok(self.stream.shutdown(Shutdown::Both)?)
     }
 
     pub fn into_stream(self) -> TcpStream {

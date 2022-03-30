@@ -5,17 +5,19 @@ pub mod login;
 pub mod play;
 pub mod status;
 
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use std::io::{Read, Write};
 
-use crate::ReadExt;
+use crate::{
+    error::{Error, Result},
+    ReadExt,
+};
 
 pub use builder::PacketBuilder;
 
 macro_rules! impl_packet_enum {
     ($side:ident {$($id:literal => $packet:ident),* $(,)?}) => {
         pub mod $side {
-            use crate::packet::PacketRead;
-            use std::io::Result;
+            use crate::{packet::PacketRead, error::Result};
 
             #[derive(Debug)]
             pub enum Packet {
@@ -49,7 +51,7 @@ pub trait PacketRead: Packet + Sized {
 
         let (id, id_len) = reader.read_varint()?;
         if id != Self::PACKET_ID {
-            return Err(Error::new(ErrorKind::Other, "Invalid packet id"));
+            return Err(Error::IncorectPacketId(Self::PACKET_ID, id));
         }
 
         Self::read_data(reader, length as usize - id_len)
@@ -63,7 +65,7 @@ pub trait PacketWrite: Packet {
     fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
         let mut packet = PacketBuilder::new(Self::PACKET_ID)?;
         self.write_data(&mut packet)?;
-        packet.write_to(writer)
+        Ok(packet.write_to(writer)?)
     }
 
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()>;

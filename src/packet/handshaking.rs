@@ -1,7 +1,10 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
-use crate::types::{v32, McRead};
+use crate::{
+    error::Result,
+    types::{v32, McRead},
+};
 use packet_derive::Packet;
-use std::io::{Read, Result};
+use std::io::Read;
 
 //
 // Serverbound
@@ -118,6 +121,6 @@ impl PacketWrite for Handshake {
         packet.write(&self.protocol_version)?;
         packet.write(&self.modified_address())?;
         packet.write(&self.server_port)?;
-        packet.write(&self.next_state.to_v32())
+        Ok(packet.write(&self.next_state.to_v32())?)
     }
 }

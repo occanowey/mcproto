@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 packet_derive = { path = "packet_derive" }
 uuid = "0.8"
+thiserror = "1.0"
 
 # -- compression
 flate2 = "1.0"

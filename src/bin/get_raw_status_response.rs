@@ -1,5 +1,6 @@
 use std::{
-    env, io,
+    env,
+    error::Error,
     net::{TcpStream, ToSocketAddrs},
     time::Instant,
 };
@@ -12,16 +13,7 @@ use mcproto::{
     },
 };
 
-#[derive(Debug)]
-struct Error(String);
-
-impl From<io::Error> for Error {
-    fn from(source: io::Error) -> Self {
-        Error(source.to_string())
-    }
-}
-
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), Box<dyn Error>> {
     let address = env::args()
         .nth(1)
         .expect("address required")

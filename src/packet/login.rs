@@ -1,10 +1,11 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
+    error::Result,
     types::{v32, Identifier, LengthPrefixByteArray, McRead},
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
-use std::io::{Read, Result};
+use std::io::Read;
 use uuid::Uuid;
 
 //
@@ -74,7 +75,7 @@ impl PacketWrite for LoginPluginRequest {
         packet.write(&self.message_id)?;
         packet.write(&self.channel)?;
 
-        packet.write_byte_array(&self.data)
+        Ok(packet.write_byte_array(&self.data)?)
     }
 }
 
@@ -129,6 +130,6 @@ impl PacketWrite for LoginPluginResponse {
         packet.write(&self.message_id)?;
         packet.write(&self.successful)?;
 
-        packet.write_byte_array(&self.data)
+        Ok(packet.write_byte_array(&self.data)?)
     }
 }
