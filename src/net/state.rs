@@ -1,6 +1,6 @@
 use crate::{
     net::side::{Client, Server},
-    packet::{handshaking, login, play, status},
+    packet::{handshaking, login, status},
 };
 
 pub trait NetworkState {
@@ -74,8 +74,3 @@ impl_state!(
         login::LoginPluginResponse,
     ],
 );
-
-//
-// Play State
-//
-impl_state!(PlayState("play"), s2c[play::Disconnect]);
