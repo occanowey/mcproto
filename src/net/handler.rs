@@ -6,6 +6,7 @@ use aes::cipher::NewCipher;
 use aes::Aes128;
 use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
+use tracing::{debug, trace};
 
 use crate::error::Error;
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
     net::{
         side::NetworkSide,
         state::{
-            Handshaking, LoginState, NetworkState, PlayState, SidedStateReadPacket,
+            HandshakingState, LoginState, NetworkState, PlayState, SidedStateReadPacket,
             SidedStateWritePacket, StatusState,
         },
     },
@@ -27,7 +28,7 @@ pub type Cipher = Cfb8<Aes128>;
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(
     stream: TcpStream,
-) -> Result<NetworkHandler<D, Handshaking>> {
+) -> Result<NetworkHandler<D, HandshakingState>> {
     let reader = EncryptableBufReader::wrap(stream.try_clone()?);
     let writer = EncryptableWriter::wrap(stream.try_clone()?);
 
@@ -55,13 +56,15 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 }
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
-    pub fn read<P: SidedStateReadPacket<D, S>>(&mut self) -> Result<P> {
+    pub fn read<P: SidedStateReadPacket<D, S> + std::fmt::Debug>(&mut self) -> Result<P> {
         let (id, data) = self.read_raw_data()?;
         if id != P::PACKET_ID {
             return Err(Error::IncorectPacketId(P::PACKET_ID, id));
         }
 
-        P::read_data(&mut data.as_slice(), data.len())
+        let packet = P::read_data(&mut data.as_slice(), data.len());
+        debug!(state = ?S::LABEL, ?packet, "read packet");
+        packet
     }
 
     pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>)> {
@@ -92,10 +95,16 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         let (id, id_len) = buffer.as_slice().read_varint()?;
         buffer.drain(0..id_len);
 
+        trace!(id, ?buffer, "read raw packet");
         Ok((id, buffer))
     }
 
-    pub fn write<P: SidedStateWritePacket<D, S>>(&mut self, packet: P) -> Result<()> {
+    pub fn write<P: SidedStateWritePacket<D, S> + std::fmt::Debug>(
+        &mut self,
+        packet: P,
+    ) -> Result<()> {
+        debug!(state = ?S::LABEL, ?packet, compression = ?self.compression, "writing packet");
+
         let mut builder = PacketBuilder::new(P::PACKET_ID)?;
         packet.write_data(&mut builder)?;
 
@@ -107,10 +116,14 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     }
 
     pub fn set_compression_threshold<T: Into<Option<usize>>>(&mut self, threshold: T) {
-        self.compression = threshold.into();
+        let threshold = threshold.into();
+        debug!(state = ?S::LABEL, ?threshold, "setting threshold");
+        self.compression = threshold;
     }
 
     pub fn set_encryption_secret(&mut self, secret: &[u8]) {
+        debug!(state = ?S::LABEL, "setting encryption");
+
         let read_cipher = Cipher::new_from_slices(secret, secret).unwrap();
         self.reader.set_cipher(read_cipher);
 
@@ -142,18 +155,21 @@ macro_rules! same_fields_different_generics {
     };
 }
 
-impl<D: NetworkSide> NetworkHandler<D, Handshaking> {
+impl<D: NetworkSide> NetworkHandler<D, HandshakingState> {
     pub fn status(self) -> NetworkHandler<D, StatusState> {
+        debug!(state = ?HandshakingState::LABEL, "switching to status state");
         same_fields_different_generics!(self)
     }
 
     pub fn login(self) -> NetworkHandler<D, LoginState> {
+        debug!(state = ?HandshakingState::LABEL, "switching to login state");
         same_fields_different_generics!(self)
     }
 }
 
 impl<D: NetworkSide> NetworkHandler<D, LoginState> {
     pub fn play(self) -> NetworkHandler<D, PlayState> {
+        debug!(state = ?LoginState::LABEL, "switching to play state");
         same_fields_different_generics!(self)
     }
 }

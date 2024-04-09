@@ -8,7 +8,9 @@ use crate::{
     },
 };
 
-pub trait NetworkState {}
+pub trait NetworkState {
+    const LABEL: &'static str;
+}
 
 mod sealed {
     use super::NetworkState;
@@ -37,16 +39,20 @@ macro_rules! impl_sided_state_packet {
 //
 // Handshaking State
 //
-pub struct Handshaking;
-impl NetworkState for Handshaking {}
+pub struct HandshakingState;
+impl NetworkState for HandshakingState {
+    const LABEL: &'static str = "handshaking";
+}
 
-impl_sided_state_packet!(c2s, Handshaking, Handshake);
+impl_sided_state_packet!(c2s, HandshakingState, Handshake);
 
 //
 // Status State
 //
 pub struct StatusState;
-impl NetworkState for StatusState {}
+impl NetworkState for StatusState {
+    const LABEL: &'static str = "status";
+}
 
 impl_sided_state_packet!(s2c, StatusState, Response);
 impl_sided_state_packet!(s2c, StatusState, Pong);
@@ -58,7 +64,9 @@ impl_sided_state_packet!(c2s, StatusState, Ping);
 // Login State
 //
 pub struct LoginState;
-impl NetworkState for LoginState {}
+impl NetworkState for LoginState {
+    const LABEL: &'static str = "login";
+}
 
 impl_sided_state_packet!(s2c, LoginState, login::Disconnect);
 impl_sided_state_packet!(s2c, LoginState, EncryptionRequest);
@@ -74,6 +82,8 @@ impl_sided_state_packet!(c2s, LoginState, LoginPluginResponse);
 // Play State
 //
 pub struct PlayState;
-impl NetworkState for PlayState {}
+impl NetworkState for PlayState {
+    const LABEL: &'static str = "play";
+}
 
 impl_sided_state_packet!(s2c, PlayState, play::Disconnect);

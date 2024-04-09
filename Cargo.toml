@@ -9,6 +9,7 @@ edition = "2018"
 packet_derive = { path = "packet_derive" }
 uuid = "0.8"
 thiserror = "1.0"
+tracing = "0.1.40"
 
 # -- compression
 flate2 = "1.0"

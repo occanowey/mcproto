@@ -1,6 +1,7 @@
 use std::io::{Read, Write};
 
 use aes::cipher::AsyncStreamCipher;
+use tracing::trace;
 
 pub struct EncryptableBufReader<R: Read, C: AsyncStreamCipher> {
     inner: R,
@@ -45,6 +46,12 @@ impl<R: Read, C: AsyncStreamCipher> Read for EncryptableBufReader<R, C> {
             cipher.decrypt(&mut buf[..out_len]);
         }
 
+        trace!(
+            was_encrypted = self.cipher.is_some(),
+            "read data {:?}",
+            &buf[..out_len]
+        );
+
         Ok(out_len)
     }
 }
@@ -69,6 +76,12 @@ impl<W: Write, C: AsyncStreamCipher> EncryptableWriter<W, C> {
 
 impl<W: Write, C: AsyncStreamCipher> Write for EncryptableWriter<W, C> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        trace!(
+            to_be_encrypted = self.cipher.is_some(),
+            "write data {:?}",
+            &buf
+        );
+
         let mut buf = buf.to_vec();
         if let Some(cipher) = &mut self.cipher {
             cipher.encrypt(&mut buf);
