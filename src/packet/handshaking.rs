@@ -1,7 +1,7 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{v32, McRead},
+    types::{v32, v32_enum_read_write, McRead},
 };
 use packet_derive::Packet;
 use std::io::Read;
@@ -60,15 +60,13 @@ pub enum NextState {
     Unknown(i32),
 }
 
-impl NextState {
-    fn to_v32(&self) -> v32 {
-        match self {
-            NextState::Status => 1.into(),
-            NextState::Login => 2.into(),
-            NextState::Unknown(other) => (*other).into(),
-        }
+v32_enum_read_write!(
+    NextState => Unknown
+    {
+        Status = 1,
+        Login = 2,
     }
-}
+);
 
 #[derive(Debug, Packet)]
 #[id(0x00)]
@@ -97,12 +95,7 @@ impl PacketRead for Handshake {
         let protocol_version = v32::read(reader)?.0;
         let server_address = String::read(reader)?.0;
         let server_port = u16::read(reader)?.0;
-
-        let next_state = match v32::read(reader)?.0 .0 {
-            1 => NextState::Status,
-            2 => NextState::Login,
-            other => NextState::Unknown(other),
-        };
+        let next_state = NextState::read(reader)?.0;
 
         let (server_address, forge) = ForgeHandshake::separate_address(server_address);
 
@@ -121,6 +114,6 @@ impl PacketWrite for Handshake {
         packet.write(&self.protocol_version)?;
         packet.write(&self.modified_address())?;
         packet.write(&self.server_port)?;
-        Ok(packet.write(&self.next_state.to_v32())?)
+        Ok(packet.write(&self.next_state)?)
     }
 }

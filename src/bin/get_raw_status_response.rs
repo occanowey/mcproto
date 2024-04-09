@@ -9,7 +9,7 @@ use mcproto::{
     net::handler_from_stream,
     packet::{
         handshaking::{Handshake, NextState},
-        status::{Ping, Pong, Request, Response},
+        status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
     },
 };
 
@@ -35,18 +35,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut handler = handler.status();
 
-    handler.write(Request)?;
-    let response: Response = handler.read()?;
+    handler.write(StatusRequest)?;
+    let response: StatusResponse = handler.read()?;
 
     let now = Instant::now();
 
-    handler.write(Ping { data: 1 })?;
-    let pong: Pong = handler.read()?;
+    handler.write(PingRequest { payload: 1 })?;
+    let pong: PingResponse = handler.read()?;
 
     let duration = now.elapsed().as_millis();
 
-    if pong.data != 1 {
-        println!("! server replied with different ping/pong data")
+    if pong.payload != 1 {
+        println!("! server replied with different payload")
     }
 
     println!(

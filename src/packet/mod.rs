@@ -26,6 +26,10 @@ macro_rules! impl_packet_enum {
             }
 
             impl Packet {
+                pub fn is_known(&self) -> bool {
+                    !matches!(self, Self::Unknown(_))
+                }
+
                 pub fn from_id_data(id: i32, data: &mut &[u8]) -> Result<Self> {
                     match id {
                         $($id => super::$packet::read_data(data, data.len()).map(Self::$packet),)*

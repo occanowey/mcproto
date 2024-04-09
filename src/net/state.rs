@@ -52,8 +52,8 @@ impl_state!(HandshakingState("handshaking"), c2s[handshaking::Handshake]);
 //
 impl_state!(
     StatusState("status"),
-    s2c[status::Request, status::Ping],
-    c2s[status::Response, status::Pong],
+    s2c[status::StatusResponse, status::PingResponse],
+    c2s[status::StatusRequest, status::PingRequest],
 );
 
 //
@@ -72,5 +72,6 @@ impl_state!(
         login::LoginStart,
         login::EncryptionResponse,
         login::LoginPluginResponse,
+        login::LoginAcknowledged,
     ],
 );

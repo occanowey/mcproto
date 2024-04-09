@@ -8,20 +8,20 @@ use std::io::Read;
 //
 
 impl_packet_enum!(s2c {
-    0x00 => Response,
-    0x01 => Pong,
+    0x00 => StatusResponse,
+    0x01 => PingResponse,
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
-pub struct Response {
+pub struct StatusResponse {
     pub response: String,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x01)]
-pub struct Pong {
-    pub data: i64,
+pub struct PingResponse {
+    pub payload: i64,
 }
 
 //
@@ -29,16 +29,16 @@ pub struct Pong {
 //
 
 impl_packet_enum!(c2s {
-    0x00 => Request,
-    0x01 => Ping,
+    0x00 => StatusRequest,
+    0x01 => PingRequest,
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
-pub struct Request;
+pub struct StatusRequest;
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x01)]
-pub struct Ping {
-    pub data: i64,
+pub struct PingRequest {
+    pub payload: i64,
 }

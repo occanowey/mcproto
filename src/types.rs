@@ -47,16 +47,16 @@ impl McWrite for bool {
 }
 
 // Byte
-impl_rprimitive!(u8, 1);
-
-// Unsigned Byte
 impl_rprimitive!(i8, 1);
 
+// Unsigned Byte
+impl_rprimitive!(u8, 1);
+
 // Short
-impl_rprimitive!(u16, 2);
+impl_rprimitive!(i16, 2);
 
 // Unsigned Short
-impl_rprimitive!(i16, 2);
+impl_rprimitive!(u16, 2);
 
 // Int
 impl_rprimitive!(i32, 4);
@@ -113,6 +113,12 @@ impl McWrite for Identifier {
 #[allow(non_camel_case_types)]
 pub struct v32(pub i32);
 
+impl v32 {
+    // sourced from https://wiki.vg/VarInt_And_VarLong
+    // unsure of accuracy
+    pub const MAX: i32 = 2147483647;
+}
+
 impl From<i32> for v32 {
     fn from(inner: i32) -> Self {
         v32(inner)
@@ -138,6 +144,7 @@ impl McRead for v32 {
 
             i += 1;
             if i > 5 {
+                // TODO: return actual error
                 panic!("varint too big");
             }
 
@@ -237,3 +244,33 @@ impl McWrite for LengthPrefixByteArray {
         writer.write_all(&self.0)
     }
 }
+
+macro_rules! v32_enum_read_write {
+    ($enum:ty => $unknown:ident { $($variant:ident = $val:expr),* $(,)? }) => {
+        impl crate::types::McRead for $enum {
+            fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<(Self, usize)> {
+                let (val, size) = crate::types::v32::read(reader)?;
+
+                let r#enum = match val.0 {
+                    $($val => Self::$variant,)*
+                    unknown => Self::$unknown(unknown),
+                };
+
+                Ok((r#enum, size))
+            }
+        }
+
+        impl crate::types::McWrite for $enum {
+            fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+                let value = match self {
+                    $(Self::$variant => $val,)*
+                    Self::$unknown(unknown) => *unknown,
+                };
+
+                crate::types::v32(value).write(writer)
+            }
+        }
+    };
+}
+
+pub(crate) use v32_enum_read_write;

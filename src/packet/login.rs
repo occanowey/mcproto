@@ -23,6 +23,7 @@ impl_packet_enum!(s2c {
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
 pub struct Disconnect {
+    // Text Component (JSON)
     pub reason: String,
 }
 
@@ -34,11 +35,82 @@ pub struct EncryptionRequest {
     pub verify_token: LengthPrefixByteArray,
 }
 
-#[derive(Debug, Packet, PacketRead, PacketWrite)]
+#[derive(Debug, Packet)]
 #[id(0x02)]
 pub struct LoginSuccess {
     pub uuid: Uuid,
     pub username: String,
+    pub properties: Vec<login_success::Property>,
+}
+
+mod login_success {
+    #[derive(Debug)]
+    pub struct Property {
+        pub name: String,
+        pub value: String,
+        pub signature: Option<String>,
+    }
+}
+
+impl PacketRead for LoginSuccess {
+    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
+        let (uuid, _) = Uuid::read(reader)?;
+        let (username, _) = String::read(reader)?;
+
+        let mut properties = Vec::new();
+        let (properties_count, _) = v32::read(reader)?;
+        for _ in 0..properties_count.0 {
+            let (name, _) = String::read(reader)?;
+            let (value, _) = String::read(reader)?;
+
+            let (has_signature, _) = bool::read(reader)?;
+
+            let signature = if has_signature {
+                let (signature, _) = String::read(reader)?;
+                Some(signature)
+            } else {
+                None
+            };
+
+            properties.push(login_success::Property {
+                name,
+                value,
+                signature,
+            });
+        }
+
+        Ok(LoginSuccess {
+            uuid,
+            username,
+            properties,
+        })
+    }
+}
+
+impl PacketWrite for LoginSuccess {
+    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
+        packet.write(&self.uuid)?;
+        packet.write(&self.username)?;
+
+        let properties_count = self.properties.len();
+        // TODO: return error rather than panic
+        assert!(properties_count < (v32::MAX as usize));
+        packet.write(&v32(properties_count as _))?;
+
+        for property in &self.properties {
+            packet.write(&property.name)?;
+            packet.write(&property.value)?;
+
+            if let Some(signature) = &property.signature {
+                packet.write(&true)?;
+                packet.write(signature)?;
+            } else {
+                packet.write(&false)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -87,12 +159,14 @@ impl_packet_enum!(c2s {
     0x00 => LoginStart,
     0x01 => EncryptionResponse,
     0x02 => LoginPluginResponse,
+    0x02 => LoginAcknowledged,
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[id(0x00)]
 pub struct LoginStart {
     pub username: String,
+    pub uuid: Uuid,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -133,3 +207,7 @@ impl PacketWrite for LoginPluginResponse {
         Ok(packet.write_byte_array(&self.data)?)
     }
 }
+
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
+#[id(0x03)]
+pub struct LoginAcknowledged;
