@@ -1,11 +1,6 @@
 use crate::{
     net::side::{Client, Server},
-    packet::{
-        handshaking::Handshake,
-        login::{self, *},
-        play,
-        status::*,
-    },
+    packet::{handshaking, login, play, status},
 };
 
 pub trait NetworkState {
@@ -36,54 +31,51 @@ macro_rules! impl_sided_state_packet {
     };
 }
 
+macro_rules! impl_state {
+    ($state: ident ($label: expr) $(, $($side: tt [$($packet: ty),* $(,)?]),*)? $(,)?) => {
+        pub struct $state;
+        impl NetworkState for $state {
+            const LABEL: &'static str = $label;
+        }
+
+        $($($(impl_sided_state_packet!($side, $state, $packet);)*)*)?
+    };
+}
+
 //
 // Handshaking State
 //
-pub struct HandshakingState;
-impl NetworkState for HandshakingState {
-    const LABEL: &'static str = "handshaking";
-}
-
-impl_sided_state_packet!(c2s, HandshakingState, Handshake);
+impl_state!(HandshakingState("handshaking"), c2s[handshaking::Handshake]);
 
 //
 // Status State
 //
-pub struct StatusState;
-impl NetworkState for StatusState {
-    const LABEL: &'static str = "status";
-}
-
-impl_sided_state_packet!(s2c, StatusState, Response);
-impl_sided_state_packet!(s2c, StatusState, Pong);
-
-impl_sided_state_packet!(c2s, StatusState, Request);
-impl_sided_state_packet!(c2s, StatusState, Ping);
+impl_state!(
+    StatusState("status"),
+    s2c[status::Request, status::Ping],
+    c2s[status::Response, status::Pong],
+);
 
 //
 // Login State
 //
-pub struct LoginState;
-impl NetworkState for LoginState {
-    const LABEL: &'static str = "login";
-}
-
-impl_sided_state_packet!(s2c, LoginState, login::Disconnect);
-impl_sided_state_packet!(s2c, LoginState, EncryptionRequest);
-impl_sided_state_packet!(s2c, LoginState, LoginSuccess);
-impl_sided_state_packet!(s2c, LoginState, SetCompression);
-impl_sided_state_packet!(s2c, LoginState, LoginPluginRequest);
-
-impl_sided_state_packet!(c2s, LoginState, LoginStart);
-impl_sided_state_packet!(c2s, LoginState, EncryptionResponse);
-impl_sided_state_packet!(c2s, LoginState, LoginPluginResponse);
+impl_state!(
+    LoginState("login"),
+    s2c[
+        login::Disconnect,
+        login::EncryptionRequest,
+        login::LoginSuccess,
+        login::SetCompression,
+        login::LoginPluginRequest,
+    ],
+    c2s[
+        login::LoginStart,
+        login::EncryptionResponse,
+        login::LoginPluginResponse,
+    ],
+);
 
 //
 // Play State
 //
-pub struct PlayState;
-impl NetworkState for PlayState {
-    const LABEL: &'static str = "play";
-}
-
-impl_sided_state_packet!(s2c, PlayState, play::Disconnect);
+impl_state!(PlayState("play"), s2c[play::Disconnect]);
