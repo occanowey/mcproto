@@ -8,20 +8,16 @@ use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 use tracing::{debug, trace};
 
-use crate::error::Error;
-use crate::{
-    error::Result,
-    net::{
-        side::NetworkSide,
-        state::{
-            HandshakingState, LoginState, NetworkState, SidedStateReadPacket,
-            SidedStateWritePacket, StatusState,
-        },
-    },
-    PacketBuilder, ReadExt,
-};
-
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
+use crate::error::{Error, Result};
+use crate::net::{
+    side::NetworkSide,
+    state::{
+        HandshakingState, LoginState, NetworkState, SidedStateReadPacket, SidedStateWritePacket,
+        StatusState,
+    },
+};
+use crate::{PacketBuilder, ReadExt};
 
 pub type Cipher = Cfb8<Aes128>;
 
