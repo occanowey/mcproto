@@ -13,8 +13,8 @@ use crate::error::{Error, Result};
 use crate::net::{
     side::NetworkSide,
     state::{
-        HandshakingState, LoginState, NetworkState, PlayState, SidedStateReadPacket,
-        SidedStateWritePacket, StatusState,
+        ConfigurationState, HandshakingState, LoginState, NetworkState, PlayState,
+        SidedStateReadPacket, SidedStateWritePacket, StatusState,
     },
 };
 use crate::{PacketBuilder, ReadExt};
@@ -164,8 +164,15 @@ impl<D: NetworkSide> NetworkHandler<D, HandshakingState> {
 }
 
 impl<D: NetworkSide> NetworkHandler<D, LoginState> {
+    pub fn configuration(self) -> NetworkHandler<D, ConfigurationState> {
+        debug!(state = ?LoginState::LABEL, "switching to configuration state");
+        same_fields_different_generics!(self)
+    }
+}
+
+impl<D: NetworkSide> NetworkHandler<D, ConfigurationState> {
     pub fn play(self) -> NetworkHandler<D, PlayState> {
-        debug!(state = ?LoginState::LABEL, "switching to play state");
+        debug!(state = ?ConfigurationState::LABEL, "switching to play state");
         same_fields_different_generics!(self)
     }
 }

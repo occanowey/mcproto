@@ -87,11 +87,24 @@ impl McWrite for String {
     }
 }
 
+// Text Component
+#[derive(Debug)]
+pub enum TextComponent {
+    String(String),
+    Compound(()),
+}
+
+impl McRead for TextComponent {
+    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+        todo!()
+    }
+}
+
 // Chat
 
 // Identifier
 // TODO: make sure it's a valid ident?
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Identifier(pub String);
 
 impl McRead for Identifier {

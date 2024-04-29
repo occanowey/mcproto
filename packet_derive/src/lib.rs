@@ -10,7 +10,7 @@ pub fn packet(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let name = input.ident;
     let packet_id: Literal = input
         .attrs
-        .get(0)
+        .first()
         .and_then(|attr| attr.parse_args().ok())
         .expect("Expected packet id");
 

@@ -1,6 +1,6 @@
 use crate::{
     net::side::{Client, Server},
-    packet::{handshaking, login, play, status},
+    packet::{configuration, handshaking, login, play, status},
 };
 
 pub trait NetworkState {
@@ -73,6 +73,33 @@ impl_state!(
         login::EncryptionResponse,
         login::LoginPluginResponse,
         login::LoginAcknowledged,
+    ],
+);
+
+//
+// Configuration State
+//
+impl_state!(
+    ConfigurationState("configuration"),
+    s2c[
+        configuration::ClientboundPluginMessage,
+        configuration::Disconnect,
+        configuration::FinishConfiguration,
+        configuration::ClientboundKeepAlive,
+        configuration::Ping,
+        configuration::RegistryData,
+        configuration::RemoveResourcePack,
+        configuration::AddResourcePack,
+        configuration::FeatureFlags,
+        configuration::UpdateTags,
+    ],
+    c2s[
+        configuration::ClientInformation,
+        configuration::ServerboundPluginMessage,
+        configuration::AcknowledgeFinishConfiguration,
+        configuration::ServerboundKeepAlive,
+        configuration::Pong,
+        configuration::ResourcePackResponse,
     ],
 );
 
