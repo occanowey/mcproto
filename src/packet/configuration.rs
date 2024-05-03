@@ -1,7 +1,7 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{v32, Identifier, LengthPrefixByteArray, McRead},
+    types::{proxy::bool_option, v32, Identifier, LengthPrefixByteArray, McRead},
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -95,40 +95,13 @@ impl PacketWrite for RegistryData {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x06)]
 pub struct RemoveResourcePack {
     // None = remove all
     // Some(uuid) = remove specific
+    #[packet(with = "bool_option")]
     pub uuid: Option<Uuid>,
-}
-
-impl PacketRead for RemoveResourcePack {
-    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
-        let (has_uuid, _) = bool::read(reader)?;
-
-        let uuid = if has_uuid {
-            let (uuid, _) = Uuid::read(reader)?;
-            Some(uuid)
-        } else {
-            None
-        };
-
-        Ok(RemoveResourcePack { uuid })
-    }
-}
-
-impl PacketWrite for RemoveResourcePack {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        if let Some(uuid) = &self.uuid {
-            packet.write(&true)?;
-            packet.write(uuid)?;
-        } else {
-            packet.write(&false)?;
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(Debug, Packet)]

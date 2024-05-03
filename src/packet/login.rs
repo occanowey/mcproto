@@ -44,11 +44,42 @@ pub struct LoginSuccess {
 }
 
 mod login_success {
+    use crate::types::{proxy::bool_option, McRead, McWrite};
+
     #[derive(Debug)]
     pub struct Property {
         pub name: String,
         pub value: String,
         pub signature: Option<String>,
+    }
+
+    impl McRead for Property {
+        fn read<R: std::io::prelude::Read>(reader: &mut R) -> std::io::Result<(Self, usize)>
+        where
+            Self: std::marker::Sized,
+        {
+            let (name, name_len) = String::read(reader)?;
+            let (value, value_len) = String::read(reader)?;
+            let (signature, signature_len) = bool_option::mc_read(reader)?;
+
+            let property = Property {
+                name,
+                value,
+                signature,
+            };
+
+            Ok((property, name_len + value_len + signature_len))
+        }
+    }
+
+    impl McWrite for Property {
+        fn write<W: std::io::prelude::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+            self.name.write(writer)?;
+            self.value.write(writer)?;
+            bool_option::mc_write(writer, &self.signature)?;
+
+            Ok(())
+        }
     }
 }
 
@@ -60,23 +91,8 @@ impl PacketRead for LoginSuccess {
         let mut properties = Vec::new();
         let (properties_count, _) = v32::read(reader)?;
         for _ in 0..properties_count.0 {
-            let (name, _) = String::read(reader)?;
-            let (value, _) = String::read(reader)?;
-
-            let (has_signature, _) = bool::read(reader)?;
-
-            let signature = if has_signature {
-                let (signature, _) = String::read(reader)?;
-                Some(signature)
-            } else {
-                None
-            };
-
-            properties.push(login_success::Property {
-                name,
-                value,
-                signature,
-            });
+            let (property, _) = login_success::Property::read(reader)?;
+            properties.push(property);
         }
 
         Ok(LoginSuccess {
@@ -98,15 +114,7 @@ impl PacketWrite for LoginSuccess {
         packet.write(&v32(properties_count as _))?;
 
         for property in &self.properties {
-            packet.write(&property.name)?;
-            packet.write(&property.value)?;
-
-            if let Some(signature) = &property.signature {
-                packet.write(&true)?;
-                packet.write(signature)?;
-            } else {
-                packet.write(&false)?;
-            }
+            packet.write(property)?;
         }
 
         Ok(())
