@@ -2,7 +2,7 @@ use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
     types::{
-        proxy::{bool_option, length_prefix_bytes},
+        proxy::{bool_option, length_prefix_array, length_prefix_bytes},
         v32, Identifier, McRead,
     },
     ReadExt,
@@ -81,7 +81,6 @@ pub struct Ping {
 #[packet(id = 0x05)]
 pub struct RegistryData {
     // NBT - https://wiki.vg/Registry_Data
-    // pub registry_data: LengthPrefixByteArray,
     pub registry_data: Vec<u8>,
 }
 
@@ -163,38 +162,11 @@ impl PacketWrite for AddResourcePack {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x08)]
 pub struct FeatureFlags {
+    #[packet(with = "length_prefix_array")]
     pub feature_flags: Vec<Identifier>,
-}
-
-impl PacketRead for FeatureFlags {
-    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
-        let mut feature_flags = Vec::new();
-        let (feature_flags_count, _) = v32::read(reader)?;
-        for _ in 0..feature_flags_count.0 {
-            let (feature_flag, _) = Identifier::read(reader)?;
-            feature_flags.push(feature_flag);
-        }
-
-        Ok(FeatureFlags { feature_flags })
-    }
-}
-
-impl PacketWrite for FeatureFlags {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        let feature_flags_count = self.feature_flags.len();
-        // TODO: return error rather than panic
-        assert!(feature_flags_count < (v32::MAX as usize));
-        packet.write(&v32(feature_flags_count as _))?;
-
-        for feature_flag in &self.feature_flags {
-            packet.write(feature_flag)?;
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(Debug, Packet)]
@@ -204,7 +176,7 @@ pub struct UpdateTags {
 }
 
 pub mod update_tags {
-    use crate::types::{v32, Identifier, McRead, McWrite};
+    use crate::types::{proxy::length_prefix_array, v32, Identifier, McRead, McWrite};
 
     #[derive(Debug)]
     pub struct Tag {
@@ -215,34 +187,17 @@ pub mod update_tags {
     impl McRead for Tag {
         fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<(Self, usize)> {
             let (name, name_size) = Identifier::read(reader)?;
-
-            let mut entries = Vec::new();
-            let mut entries_size = 0;
-            let (entries_count, entries_count_size) = v32::read(reader)?;
-            for _ in 0..entries_count.0 {
-                let (entry, entry_size) = v32::read(reader)?;
-
-                entries.push(entry);
-                entries_size += entry_size;
-            }
+            let (entries, entries_size) = length_prefix_array::mc_read(reader)?;
 
             let tag = Tag { name, entries };
-            Ok((tag, name_size + entries_size + entries_count_size))
+            Ok((tag, name_size + entries_size))
         }
     }
 
     impl McWrite for Tag {
         fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
             self.name.write(writer)?;
-
-            let entries_count = self.entries.len();
-            // TODO: return error rather than panic
-            assert!(entries_count < (v32::MAX as usize));
-            v32(entries_count as _).write(writer)?;
-
-            for entry in &self.entries {
-                entry.write(writer)?;
-            }
+            length_prefix_array::mc_write(writer, &self.entries)?;
 
             Ok(())
         }
@@ -255,13 +210,7 @@ impl PacketRead for UpdateTags {
         let (tags_count, _) = v32::read(reader)?;
         for _ in 0..tags_count.0 {
             let (registry, _) = Identifier::read(reader)?;
-
-            let mut tags = Vec::new();
-            let (tags_count, _) = v32::read(reader)?;
-            for _ in 0..tags_count.0 {
-                let (tag, _) = update_tags::Tag::read(reader)?;
-                tags.push(tag);
-            }
+            let (tags, _) = length_prefix_array::read(reader, 0)?;
 
             tag_map.insert(registry, tags);
         }
@@ -279,15 +228,7 @@ impl PacketWrite for UpdateTags {
 
         for (registry, tags) in &self.tags {
             packet.write(registry)?;
-
-            let tags_count = tags.len();
-            // TODO: return error rather than panic
-            assert!(tags_count < (v32::MAX as usize));
-            packet.write(&v32(tags_count as _))?;
-
-            for tag in tags {
-                packet.write(tag)?;
-            }
+            length_prefix_array::write(packet, tags)?;
         }
 
         Ok(())

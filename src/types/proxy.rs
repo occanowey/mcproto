@@ -19,10 +19,10 @@ pub mod i32_as_v32 {
     }
 }
 
-pub mod bool_option {
-    // TODO: merge both write functions... somehow
-    // and also maybe reads but they're not so bad
+// TODO: merge both write functions... somehow
+// and also maybe reads but they're not so bad
 
+pub mod bool_option {
     use super::*;
 
     pub fn read<R: Read, T: McRead>(
@@ -93,5 +93,63 @@ pub mod length_prefix_bytes {
         reader.read_exact(&mut buffer)?;
 
         Ok((buffer, *buffer_len as usize + len_len))
+    }
+}
+
+pub mod length_prefix_array {
+    use super::*;
+
+    pub fn read<R: Read, T: McRead>(
+        reader: &mut R,
+        _remaining_length: usize,
+    ) -> Result<(Vec<T>, usize)> {
+        Ok(self::mc_read(reader)?)
+    }
+
+    pub fn write<T: McWrite, A: AsRef<[T]>>(packet: &mut PacketBuilder, value: A) -> Result<()> {
+        let array = value.as_ref();
+
+        let values_count = array.len();
+        // TODO: return error rather than panic
+        assert!(values_count < (v32::MAX as usize));
+        i32_as_v32::write(packet, &(values_count as _))?;
+
+        for value in array {
+            packet.write(value)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn mc_read<R: Read, T: McRead>(reader: &mut R) -> std::io::Result<(Vec<T>, usize)> {
+        let mut values = Vec::new();
+
+        let (values_count, mut length) = v32::read(reader)?;
+        for _ in 0..values_count.0 {
+            let (value, value_length) = T::read(reader)?;
+
+            values.push(value);
+            length += value_length;
+        }
+
+        Ok((values, length))
+    }
+
+    pub fn mc_write<W: std::io::prelude::Write, T: McWrite, A: AsRef<[T]>>(
+        writer: &mut W,
+        value: A,
+    ) -> std::io::Result<()> {
+        let array = value.as_ref();
+
+        let values_count = array.len();
+        // TODO: return error rather than panic
+        assert!(values_count < (v32::MAX as usize));
+        v32(values_count as _).write(writer)?;
+
+        for value in array {
+            value.write(writer)?;
+        }
+
+        Ok(())
     }
 }

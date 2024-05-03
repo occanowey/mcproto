@@ -2,8 +2,8 @@ use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
     types::{
-        proxy::{i32_as_v32, length_prefix_bytes},
-        v32, Identifier, McRead,
+        proxy::{i32_as_v32, length_prefix_array, length_prefix_bytes},
+        Identifier, McRead,
     },
     ReadExt,
 };
@@ -40,11 +40,12 @@ pub struct EncryptionRequest {
     pub verify_token: Vec<u8>,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x02)]
 pub struct LoginSuccess {
     pub uuid: Uuid,
     pub username: String,
+    #[packet(with = "length_prefix_array")]
     pub properties: Vec<login_success::Property>,
 }
 
@@ -85,44 +86,6 @@ mod login_success {
 
             Ok(())
         }
-    }
-}
-
-impl PacketRead for LoginSuccess {
-    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
-        let (uuid, _) = Uuid::read(reader)?;
-        let (username, _) = String::read(reader)?;
-
-        let mut properties = Vec::new();
-        let (properties_count, _) = v32::read(reader)?;
-        for _ in 0..properties_count.0 {
-            let (property, _) = login_success::Property::read(reader)?;
-            properties.push(property);
-        }
-
-        Ok(LoginSuccess {
-            uuid,
-            username,
-            properties,
-        })
-    }
-}
-
-impl PacketWrite for LoginSuccess {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.uuid)?;
-        packet.write(&self.username)?;
-
-        let properties_count = self.properties.len();
-        // TODO: return error rather than panic
-        assert!(properties_count < (v32::MAX as usize));
-        packet.write(&v32(properties_count as _))?;
-
-        for property in &self.properties {
-            packet.write(property)?;
-        }
-
-        Ok(())
     }
 }
 
