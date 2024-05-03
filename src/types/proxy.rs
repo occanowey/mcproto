@@ -71,3 +71,27 @@ pub mod bool_option {
         Ok(())
     }
 }
+
+pub mod length_prefix_bytes {
+    use super::*;
+
+    pub fn read<R: Read>(reader: &mut R, _remaining_length: usize) -> Result<(Vec<u8>, usize)> {
+        Ok(self::mc_read(reader)?)
+    }
+
+    pub fn write<B: AsRef<[u8]>>(packet: &mut PacketBuilder, value: B) -> Result<()> {
+        let bytes = value.as_ref();
+
+        i32_as_v32::write(packet, &(bytes.len() as _))?;
+        Ok(packet.write_byte_array(bytes)?)
+    }
+
+    pub fn mc_read<R: Read>(reader: &mut R) -> std::io::Result<(Vec<u8>, usize)> {
+        let (buffer_len, len_len) = v32::read(reader)?;
+
+        let mut buffer = vec![0; *buffer_len as usize];
+        reader.read_exact(&mut buffer)?;
+
+        Ok((buffer, *buffer_len as usize + len_len))
+    }
+}

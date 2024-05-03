@@ -3,6 +3,8 @@ use std::{
     ops::Deref,
 };
 
+use proxy::length_prefix_bytes;
+
 use uuid::Uuid;
 
 pub mod proxy;
@@ -75,8 +77,8 @@ impl_rprimitive!(f64, 8);
 // String
 impl McRead for String {
     fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        let (buffer, len) = LengthPrefixByteArray::read(reader)?;
-        let string = String::from_utf8(buffer.0).unwrap();
+        let (buffer, len) = length_prefix_bytes::mc_read(reader)?;
+        let string = String::from_utf8(buffer).unwrap();
 
         Ok((string, len))
     }
@@ -228,43 +230,6 @@ impl McWrite for Uuid {
 // Array of X
 
 // X Enum
-
-// Byte Array
-#[derive(Debug)]
-pub struct LengthPrefixByteArray(pub Vec<u8>);
-
-impl<'f> From<&'f [u8]> for LengthPrefixByteArray {
-    fn from(bytes: &'f [u8]) -> Self {
-        bytes.to_vec().into()
-    }
-}
-
-impl From<Vec<u8>> for LengthPrefixByteArray {
-    fn from(inner: Vec<u8>) -> Self {
-        Self(inner)
-    }
-}
-
-impl McRead for LengthPrefixByteArray {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        let (buffer_len, len_len) = v32::read(reader)?;
-
-        let mut buffer = vec![0; *buffer_len as usize];
-        reader.read_exact(&mut buffer)?;
-
-        Ok((
-            LengthPrefixByteArray(buffer),
-            *buffer_len as usize + len_len,
-        ))
-    }
-}
-
-impl McWrite for LengthPrefixByteArray {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        v32(self.0.len() as i32).write(writer)?;
-        writer.write_all(&self.0)
-    }
-}
 
 macro_rules! v32_enum_read_write {
     ($enum:ty => $unknown:ident { $($variant:ident = $val:expr),* $(,)? }) => {

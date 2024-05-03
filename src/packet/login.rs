@@ -1,7 +1,10 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{proxy::i32_as_v32, v32, Identifier, LengthPrefixByteArray, McRead},
+    types::{
+        proxy::{i32_as_v32, length_prefix_bytes},
+        v32, Identifier, McRead,
+    },
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -31,8 +34,10 @@ pub struct Disconnect {
 #[packet(id = 0x01)]
 pub struct EncryptionRequest {
     pub server_id: String,
-    pub public_key: LengthPrefixByteArray,
-    pub verify_token: LengthPrefixByteArray,
+    #[packet(with = "length_prefix_bytes")]
+    pub public_key: Vec<u8>,
+    #[packet(with = "length_prefix_bytes")]
+    pub verify_token: Vec<u8>,
 }
 
 #[derive(Debug, Packet)]
@@ -181,8 +186,10 @@ pub struct LoginStart {
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x01)]
 pub struct EncryptionResponse {
-    pub shared_secret: LengthPrefixByteArray,
-    pub verify_token: LengthPrefixByteArray,
+    #[packet(with = "length_prefix_bytes")]
+    pub shared_secret: Vec<u8>,
+    #[packet(with = "length_prefix_bytes")]
+    pub verify_token: Vec<u8>,
 }
 
 #[derive(Debug, Packet)]

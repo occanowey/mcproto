@@ -1,7 +1,10 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{proxy::bool_option, v32, Identifier, LengthPrefixByteArray, McRead},
+    types::{
+        proxy::{bool_option, length_prefix_bytes},
+        v32, Identifier, McRead,
+    },
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -54,7 +57,8 @@ impl PacketWrite for ClientboundPluginMessage {
 #[packet(id = 0x01)]
 pub struct Disconnect {
     // Text Component (NBT)
-    pub reason: LengthPrefixByteArray,
+    #[packet(with = "length_prefix_bytes")]
+    pub reason: Vec<u8>,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -112,7 +116,7 @@ pub struct AddResourcePack {
     pub hash: String,
     pub forced: bool,
     // Text Component (NBT)
-    pub prompt_message: Option<LengthPrefixByteArray>,
+    pub prompt_message: Option<Vec<u8>>,
 }
 
 impl PacketRead for AddResourcePack {
@@ -125,7 +129,7 @@ impl PacketRead for AddResourcePack {
         let (has_prompt_message, _) = bool::read(reader)?;
 
         let prompt_message = if has_prompt_message {
-            let (prompt_message, _) = LengthPrefixByteArray::read(reader)?;
+            let (prompt_message, _) = length_prefix_bytes::read(reader, 0)?;
             Some(prompt_message)
         } else {
             None
@@ -150,7 +154,7 @@ impl PacketWrite for AddResourcePack {
 
         if let Some(prompt_message) = &self.prompt_message {
             packet.write(&true)?;
-            packet.write(prompt_message)?;
+            length_prefix_bytes::write(packet, prompt_message)?;
         } else {
             packet.write(&false)?;
         }
