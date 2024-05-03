@@ -153,3 +153,19 @@ pub mod length_prefix_array {
         Ok(())
     }
 }
+
+pub mod remaining_bytes {
+    use super::*;
+
+    pub fn read<R: Read>(reader: &mut R, remaining_length: usize) -> Result<(Vec<u8>, usize)> {
+        let mut buffer = vec![0; remaining_length];
+        reader.read_exact(&mut buffer)?;
+
+        Ok((buffer, remaining_length))
+    }
+
+    pub fn write<B: AsRef<[u8]>>(packet: &mut PacketBuilder, value: B) -> Result<()> {
+        let bytes = value.as_ref();
+        Ok(packet.write_byte_array(bytes)?)
+    }
+}

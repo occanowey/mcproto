@@ -2,10 +2,9 @@ use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
     types::{
-        proxy::{bool_option, length_prefix_array, length_prefix_bytes},
+        proxy::{bool_option, length_prefix_array, length_prefix_bytes, remaining_bytes},
         v32, Identifier, McRead,
     },
-    ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
 use std::collections::HashMap;
@@ -29,28 +28,12 @@ impl_packet_enum!(s2c {
     0x09 => UpdateTags,
 });
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x00)]
 pub struct ClientboundPluginMessage {
     pub channel: Identifier,
+    #[packet(with = "remaining_bytes")]
     pub data: Vec<u8>,
-}
-
-impl PacketRead for ClientboundPluginMessage {
-    fn read_data<R: Read>(reader: &mut R, data_len: usize) -> Result<Self> {
-        let (channel, channel_len) = Identifier::read(reader)?;
-        let data = reader.read_byte_array(data_len - channel_len)?;
-
-        Ok(ClientboundPluginMessage { channel, data })
-    }
-}
-
-impl PacketWrite for ClientboundPluginMessage {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.channel)?;
-
-        Ok(packet.write_byte_array(&self.data)?)
-    }
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -77,25 +60,12 @@ pub struct Ping {
     pub id: i32,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x05)]
 pub struct RegistryData {
     // NBT - https://wiki.vg/Registry_Data
+    #[packet(with = "remaining_bytes")]
     pub registry_data: Vec<u8>,
-}
-
-impl PacketRead for RegistryData {
-    fn read_data<R: Read>(reader: &mut R, data_len: usize) -> Result<Self> {
-        let registry_data = reader.read_byte_array(data_len)?;
-
-        Ok(RegistryData { registry_data })
-    }
-}
-
-impl PacketWrite for RegistryData {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        Ok(packet.write_byte_array(&self.registry_data)?)
-    }
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -344,28 +314,12 @@ pub mod client_information {
     );
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x01)]
 pub struct ServerboundPluginMessage {
     pub channel: Identifier,
+    #[packet(with = "remaining_bytes")]
     pub data: Vec<u8>,
-}
-
-impl PacketRead for ServerboundPluginMessage {
-    fn read_data<R: Read>(reader: &mut R, data_len: usize) -> Result<Self> {
-        let (channel, channel_len) = Identifier::read(reader)?;
-        let data = reader.read_byte_array(data_len - channel_len)?;
-
-        Ok(ServerboundPluginMessage { channel, data })
-    }
-}
-
-impl PacketWrite for ServerboundPluginMessage {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.channel)?;
-
-        Ok(packet.write_byte_array(&self.data)?)
-    }
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
