@@ -53,10 +53,8 @@ impl PacketBuilder {
 
     pub fn write_compressed<W: Write>(&self, writer: &mut W, threshold: usize) -> Result<()> {
         let mut compressed_buffer = Vec::new();
-        println!("write");
 
         let compressed_buffer = if self.buffer.len() >= threshold {
-            println!("write compressed");
             compressed_buffer.write_varint(self.buffer.len() as i32)?;
 
             let mut encoder = ZlibEncoder::new(compressed_buffer, Compression::default());
