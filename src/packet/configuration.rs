@@ -27,7 +27,7 @@ impl_packet_enum!(s2c {
 });
 
 #[derive(Debug, Packet)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct ClientboundPluginMessage {
     pub channel: Identifier,
     pub data: Vec<u8>,
@@ -51,30 +51,30 @@ impl PacketWrite for ClientboundPluginMessage {
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct Disconnect {
     // Text Component (NBT)
     pub reason: LengthPrefixByteArray,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x02)]
+#[packet(id = 0x02)]
 pub struct FinishConfiguration;
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x03)]
+#[packet(id = 0x03)]
 pub struct ClientboundKeepAlive {
     pub keep_alive_id: i64,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x04)]
+#[packet(id = 0x04)]
 pub struct Ping {
     pub id: i32,
 }
 
 #[derive(Debug, Packet)]
-#[id(0x05)]
+#[packet(id = 0x05)]
 pub struct RegistryData {
     // NBT - https://wiki.vg/Registry_Data
     // pub registry_data: LengthPrefixByteArray,
@@ -96,7 +96,7 @@ impl PacketWrite for RegistryData {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x06)]
+#[packet(id = 0x06)]
 pub struct RemoveResourcePack {
     // None = remove all
     // Some(uuid) = remove specific
@@ -132,7 +132,7 @@ impl PacketWrite for RemoveResourcePack {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x07)]
+#[packet(id = 0x07)]
 pub struct AddResourcePack {
     pub uuid: Uuid,
     pub url: String,
@@ -187,7 +187,7 @@ impl PacketWrite for AddResourcePack {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x08)]
+#[packet(id = 0x08)]
 pub struct FeatureFlags {
     pub feature_flags: Vec<Identifier>,
 }
@@ -221,7 +221,7 @@ impl PacketWrite for FeatureFlags {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x09)]
+#[packet(id = 0x09)]
 pub struct UpdateTags {
     pub tags: HashMap<Identifier, Vec<update_tags::Tag>>,
 }
@@ -331,7 +331,7 @@ impl_packet_enum!(c2s {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct ClientInformation {
     pub locale: String,
     pub view_distance: i8,
@@ -427,7 +427,7 @@ pub mod client_information {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct ServerboundPluginMessage {
     pub channel: Identifier,
     pub data: Vec<u8>,
@@ -451,23 +451,23 @@ impl PacketWrite for ServerboundPluginMessage {
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x02)]
+#[packet(id = 0x02)]
 pub struct AcknowledgeFinishConfiguration;
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x03)]
+#[packet(id = 0x03)]
 pub struct ServerboundKeepAlive {
     pub keep_alive_id: i64,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x04)]
+#[packet(id = 0x04)]
 pub struct Pong {
     pub id: i32,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x05)]
+#[packet(id = 0x05)]
 pub struct ResourcePackResponse {
     pub uuid: Uuid,
     pub result: resource_pack_response::Result,

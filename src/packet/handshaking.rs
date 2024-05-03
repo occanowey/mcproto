@@ -69,9 +69,9 @@ v32_enum_read_write!(
 );
 
 #[derive(Debug, Packet)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct Handshake {
-    pub protocol_version: v32,
+    pub protocol_version: i32,
     pub server_address: String,
     pub server_port: u16,
     pub next_state: NextState,
@@ -92,7 +92,7 @@ impl Handshake {
 impl PacketRead for Handshake {
     fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Handshake> {
         // todo: maybe handle legacy ping?
-        let protocol_version = v32::read(reader)?.0;
+        let protocol_version = v32::read(reader)?.0.into();
         let server_address = String::read(reader)?.0;
         let server_port = u16::read(reader)?.0;
         let next_state = NextState::read(reader)?.0;
@@ -111,7 +111,7 @@ impl PacketRead for Handshake {
 
 impl PacketWrite for Handshake {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.protocol_version)?;
+        packet.write::<v32>(&self.protocol_version.into())?;
         packet.write(&self.modified_address())?;
         packet.write(&self.server_port)?;
         Ok(packet.write(&self.next_state)?)

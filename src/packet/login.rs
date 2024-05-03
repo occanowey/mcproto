@@ -21,14 +21,14 @@ impl_packet_enum!(s2c {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct Disconnect {
     // Text Component (JSON)
     pub reason: String,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct EncryptionRequest {
     pub server_id: String,
     pub public_key: LengthPrefixByteArray,
@@ -36,7 +36,7 @@ pub struct EncryptionRequest {
 }
 
 #[derive(Debug, Packet)]
-#[id(0x02)]
+#[packet(id = 0x02)]
 pub struct LoginSuccess {
     pub uuid: Uuid,
     pub username: String,
@@ -114,15 +114,16 @@ impl PacketWrite for LoginSuccess {
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x03)]
+#[packet(id = 0x03)]
 pub struct SetCompression {
-    pub threshold: v32,
+    #[packet(proxy = "v32")]
+    pub threshold: i32,
 }
 
 #[derive(Debug, Packet)]
-#[id(0x04)]
+#[packet(id = 0x04)]
 pub struct LoginPluginRequest {
-    pub message_id: v32,
+    pub message_id: i32,
     pub channel: Identifier,
     pub data: Vec<u8>,
 }
@@ -135,7 +136,7 @@ impl PacketRead for LoginPluginRequest {
         let data = reader.read_byte_array(data_length - message_id_length - channel_length)?;
 
         Ok(LoginPluginRequest {
-            message_id,
+            message_id: message_id.into(),
             channel,
             data,
         })
@@ -144,7 +145,7 @@ impl PacketRead for LoginPluginRequest {
 
 impl PacketWrite for LoginPluginRequest {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.message_id)?;
+        packet.write::<v32>(&self.message_id.into())?;
         packet.write(&self.channel)?;
 
         Ok(packet.write_byte_array(&self.data)?)
@@ -163,23 +164,23 @@ impl_packet_enum!(c2s {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct LoginStart {
     pub username: String,
     pub uuid: Uuid,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct EncryptionResponse {
     pub shared_secret: LengthPrefixByteArray,
     pub verify_token: LengthPrefixByteArray,
 }
 
 #[derive(Debug, Packet)]
-#[id(0x02)]
+#[packet(id = 0x02)]
 pub struct LoginPluginResponse {
-    pub message_id: v32,
+    pub message_id: i32,
     pub successful: bool,
     pub data: Vec<u8>,
 }
@@ -192,7 +193,7 @@ impl PacketRead for LoginPluginResponse {
         let data = reader.read_byte_array(data_len - message_id_len - successful_len)?;
 
         Ok(LoginPluginResponse {
-            message_id,
+            message_id: message_id.into(),
             successful,
             data,
         })
@@ -201,7 +202,7 @@ impl PacketRead for LoginPluginResponse {
 
 impl PacketWrite for LoginPluginResponse {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.message_id)?;
+        packet.write::<v32>(&self.message_id.into())?;
         packet.write(&self.successful)?;
 
         Ok(packet.write_byte_array(&self.data)?)
@@ -209,5 +210,5 @@ impl PacketWrite for LoginPluginResponse {
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x03)]
+#[packet(id = 0x03)]
 pub struct LoginAcknowledged;

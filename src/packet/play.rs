@@ -12,7 +12,7 @@ impl_packet_enum!(s2c {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x1A)]
+#[packet(id = 0x1A)]
 pub struct Disconnect {
     pub reason: String,
 }
@@ -20,3 +20,5 @@ pub struct Disconnect {
 //
 // Serverbound
 //
+
+impl_packet_enum!(c2s {});

@@ -13,13 +13,13 @@ impl_packet_enum!(s2c {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct StatusResponse {
     pub response: String,
 }
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct PingResponse {
     pub payload: i64,
 }
@@ -34,11 +34,11 @@ impl_packet_enum!(c2s {
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x00)]
+#[packet(id = 0x00)]
 pub struct StatusRequest;
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[id(0x01)]
+#[packet(id = 0x01)]
 pub struct PingRequest {
     pub payload: i64,
 }

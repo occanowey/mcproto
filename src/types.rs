@@ -138,6 +138,18 @@ impl From<i32> for v32 {
     }
 }
 
+impl From<&i32> for v32 {
+    fn from(inner: &i32) -> Self {
+        v32(*inner)
+    }
+}
+
+impl From<v32> for i32 {
+    fn from(value: v32) -> Self {
+        value.0
+    }
+}
+
 impl Deref for v32 {
     type Target = i32;
 
