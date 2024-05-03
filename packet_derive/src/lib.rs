@@ -1,6 +1,6 @@
 use darling::{FromDeriveInput, FromField};
-use quote::{quote, quote_spanned};
-use syn::spanned::Spanned;
+use proc_macro2::Span;
+use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
 
 #[derive(Debug, FromDeriveInput)]
@@ -38,7 +38,10 @@ struct PacketReadWriteFieldReceiver {
     ident: Option<syn::Ident>,
     ty: syn::Type,
 
-    proxy: Option<syn::Type>,
+    with: Option<syn::Path>,
+
+    read_with: Option<syn::Path>,
+    write_with: Option<syn::Path>,
 }
 
 #[derive(Debug, FromDeriveInput)]
@@ -63,38 +66,51 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (r#impl, ty, r#where) = generics.split_for_impl();
     let r#struct = data.take_struct().unwrap();
 
-    let field_reads = r#struct.fields.into_iter().map(|field| {
-        let r#impl = if let Some(proxy_ty) = field.proxy {
-            quote_spanned! { proxy_ty.span() => <#proxy_ty>::read(reader)?.0.into() }
+    let fields = r#struct.fields.into_iter().enumerate().map(|(i, field)| {
+        let field_type = field.ty;
+        let value_ident = field.ident.unwrap_or_else(|| format_ident!("value{}", i));
+
+        let read_with = field.read_with.or_else(|| {
+            field.with.map(|mut path| {
+                path.segments
+                    .push(syn::Ident::new("read", Span::call_site()).into());
+
+                path
+            })
+        });
+
+        let read_impl = if let Some(read_with) = read_with {
+            quote! { #read_with(__reader, __data_length - __length) }
         } else {
-            let ty = field.ty;
-            quote_spanned! { ty.span() => <#ty>::read(reader)?.0 }
+            quote! { <#field_type>::read(__reader) }
         };
 
-        if let Some(ident) = field.ident {
-            quote! { #ident: #r#impl, }
-        } else {
-            quote! { #r#impl, }
-        }
+        (
+            value_ident.clone(),
+            quote! {
+                let (#value_ident, __value_length) = #read_impl?;
+                __length += __value_length;
+            },
+        )
     });
 
-    let read_impl = match r#struct.style {
-        darling::ast::Style::Struct => quote! {
-            Self { #(#field_reads)* }
-        },
-
-        darling::ast::Style::Tuple => quote! {
-            Self( #(#field_reads)* )
-        },
-
+    let (field_idents, field_read_impls): (Vec<_>, Vec<_>) = fields.unzip();
+    let struct_create_impl = match r#struct.style {
+        darling::ast::Style::Struct => quote! { Self { #(#field_idents),* } },
+        darling::ast::Style::Tuple => quote! { Self( #(#field_idents),* ) },
         darling::ast::Style::Unit => quote! { Self },
     };
 
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketRead for #ident #ty #r#where {
-            fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Self> {
-                Ok(#read_impl)
+            fn read_data<__R: Read>(__reader: &mut __R, __data_length: usize) -> Result<Self> {
+                let mut __length = 0;
+
+                #(#field_read_impls)*
+
+                assert_eq!(__length, __data_length);
+                Ok(#struct_create_impl)
             }
         }
     })
@@ -113,7 +129,7 @@ pub fn packet_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (r#impl, ty, r#where) = generics.split_for_impl();
     let r#struct = data.take_struct().unwrap();
 
-    let field_writes = r#struct.fields.into_iter().enumerate().map(|(i, field)| {
+    let field_write_impls = r#struct.fields.into_iter().enumerate().map(|(i, field)| {
         let ident = if let Some(ident) = field.ident {
             quote! { self.#ident }
         } else {
@@ -121,26 +137,27 @@ pub fn packet_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             quote! { self.#i }
         };
 
-        if let Some(proxy_ty) = field.proxy {
-            quote_spanned! {proxy_ty.span() => packet.write::<#proxy_ty>(&(&#ident).into())?;}
+        let write_with = field.write_with.or_else(|| {
+            field.with.map(|mut path| {
+                path.segments
+                    .push(syn::Ident::new("write", Span::call_site()).into());
+
+                path
+            })
+        });
+
+        if let Some(write_with) = write_with {
+            quote! { #write_with(__packet, &#ident)?; }
         } else {
-            quote_spanned! {field.ty.span() => packet.write(&#ident)?;}
+            quote! { __packet.write(&#ident)?; }
         }
     });
-
-    let write_impl = match r#struct.style {
-        darling::ast::Style::Struct | darling::ast::Style::Tuple => quote! {
-            #(#field_writes)*
-        },
-
-        darling::ast::Style::Unit => quote! {},
-    };
 
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketWrite for #ident #ty #r#where {
-            fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-                #write_impl
+            fn write_data(&self, __packet: &mut PacketBuilder) -> Result<()> {
+                #(#field_write_impls)*
 
                 Ok(())
             }

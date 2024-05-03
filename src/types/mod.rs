@@ -5,6 +5,8 @@ use std::{
 
 use uuid::Uuid;
 
+pub mod proxy;
+
 pub trait McRead {
     fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)>
     where
@@ -135,12 +137,6 @@ impl v32 {
 impl From<i32> for v32 {
     fn from(inner: i32) -> Self {
         v32(inner)
-    }
-}
-
-impl From<&i32> for v32 {
-    fn from(inner: &i32) -> Self {
-        v32(*inner)
     }
 }
 

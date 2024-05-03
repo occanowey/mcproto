@@ -1,7 +1,7 @@
 use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{v32, Identifier, LengthPrefixByteArray, McRead},
+    types::{proxy::i32_as_v32, v32, Identifier, LengthPrefixByteArray, McRead},
     ReadExt,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -116,7 +116,7 @@ impl PacketWrite for LoginSuccess {
 #[derive(Debug, Packet, PacketRead, PacketWrite)]
 #[packet(id = 0x03)]
 pub struct SetCompression {
-    #[packet(proxy = "v32")]
+    #[packet(with = "i32_as_v32")]
     pub threshold: i32,
 }
 
@@ -130,13 +130,13 @@ pub struct LoginPluginRequest {
 
 impl PacketRead for LoginPluginRequest {
     fn read_data<R: Read>(reader: &mut R, data_length: usize) -> Result<Self> {
-        let (message_id, message_id_length) = v32::read(reader)?;
+        let (message_id, message_id_length) = i32_as_v32::read(reader, data_length)?;
         let (channel, channel_length) = Identifier::read(reader)?;
 
         let data = reader.read_byte_array(data_length - message_id_length - channel_length)?;
 
         Ok(LoginPluginRequest {
-            message_id: message_id.into(),
+            message_id,
             channel,
             data,
         })
@@ -145,7 +145,7 @@ impl PacketRead for LoginPluginRequest {
 
 impl PacketWrite for LoginPluginRequest {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write::<v32>(&self.message_id.into())?;
+        i32_as_v32::write(packet, &self.message_id)?;
         packet.write(&self.channel)?;
 
         Ok(packet.write_byte_array(&self.data)?)
@@ -187,13 +187,13 @@ pub struct LoginPluginResponse {
 
 impl PacketRead for LoginPluginResponse {
     fn read_data<R: Read>(reader: &mut R, data_len: usize) -> Result<Self> {
-        let (message_id, message_id_len) = v32::read(reader)?;
+        let (message_id, message_id_len) = i32_as_v32::read(reader, data_len)?;
         let (successful, successful_len) = bool::read(reader)?;
 
         let data = reader.read_byte_array(data_len - message_id_len - successful_len)?;
 
         Ok(LoginPluginResponse {
-            message_id: message_id.into(),
+            message_id,
             successful,
             data,
         })
@@ -202,7 +202,7 @@ impl PacketRead for LoginPluginResponse {
 
 impl PacketWrite for LoginPluginResponse {
     fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write::<v32>(&self.message_id.into())?;
+        i32_as_v32::write(packet, &self.message_id)?;
         packet.write(&self.successful)?;
 
         Ok(packet.write_byte_array(&self.data)?)
