@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 packet_derive = { path = "packet_derive" }
-uuid = "0.8"
+uuid = "1.8.0"
 thiserror = "1.0"
 tracing = "0.1.40"
 
@@ -15,10 +15,6 @@ tracing = "0.1.40"
 flate2 = "1.0"
 
 # -- encryption
-# must stay 0.7.1 because AsyncStreamCipher functions in newer versions
-# no longer take a mutable reference, instead taking ownership.
-# doesn't really work well with continuous ciphers...
-# https://docs.rs/cipher/0.4.2/cipher/trait.AsyncStreamCipher.html
-# https://github.com/RustCrypto/traits/issues/964
-aes = "0.7.1"
-cfb8 = "0.7.1"
+crypto-common = "0.1.6"
+aes = "0.8.4"
+cfb8 = "=0.8.1"

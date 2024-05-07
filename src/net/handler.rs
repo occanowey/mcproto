@@ -2,24 +2,17 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
-use aes::cipher::NewCipher;
-use aes::Aes128;
-use cfb8::Cfb8;
 use flate2::read::ZlibDecoder;
 use tracing::{debug, trace};
 
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
 use crate::error::{Error, Result};
-use crate::net::{
-    side::NetworkSide,
-    state::{
-        ConfigurationState, HandshakingState, LoginState, NetworkState, PlayState,
-        SidedStateReadPacket, SidedStateWritePacket, StatusState,
-    },
+use crate::net::side::NetworkSide;
+use crate::net::state::{
+    ConfigurationState, HandshakingState, LoginState, NetworkState, PlayState,
+    SidedStateReadPacket, SidedStateWritePacket, StatusState,
 };
 use crate::{PacketBuilder, ReadExt};
-
-pub type Cipher = Cfb8<Aes128>;
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(
@@ -47,8 +40,8 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 
     compression: Option<usize>,
 
-    reader: EncryptableBufReader<TcpStream, Cipher>,
-    writer: EncryptableWriter<TcpStream, Cipher>,
+    reader: EncryptableBufReader<TcpStream>,
+    writer: EncryptableWriter<TcpStream>,
 }
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
@@ -120,11 +113,8 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     pub fn set_encryption_secret(&mut self, secret: &[u8]) {
         debug!(state = ?S::LABEL, "setting encryption");
 
-        let read_cipher = Cipher::new_from_slices(secret, secret).unwrap();
-        self.reader.set_cipher(read_cipher);
-
-        let write_cipher = Cipher::new_from_slices(secret, secret).unwrap();
-        self.writer.set_cipher(write_cipher);
+        self.reader.set_secret(secret);
+        self.writer.set_secret(secret);
     }
 
     pub fn close(self) -> Result<()> {
