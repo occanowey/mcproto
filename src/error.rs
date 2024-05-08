@@ -4,8 +4,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("incorect packet id: expected = {0}, recieved = {1}")]
+    #[error("incorect packet id: expected: {0}, recieved: {1}")]
     IncorectPacketId(i32, i32),
+
+    #[error("read out of bounds: len is: {0}, but tried to read: {1}")]
+    ReadOutOfBounds(usize, usize),
+
+    #[error("utf8 error: {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
 
     #[error("connection unexpectedly closed: {:?}", .0.kind())]
     UnexpectedDisconect(io::Error),

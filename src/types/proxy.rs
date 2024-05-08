@@ -1,54 +1,29 @@
-use std::io::Read;
-
-use crate::{
-    error::Result,
-    types::{v32, McRead, McWrite},
-    PacketBuilder,
-};
+use super::BufType;
+use crate::error::Result;
+use crate::types::{check_remaining, check_remaining_mut};
+use bytes::{Buf, BufMut};
 
 pub mod i32_as_v32 {
-    use super::*;
+    use super::{super::v32, *};
 
-    pub fn read<R: Read>(reader: &mut R, _remaining_length: usize) -> Result<(i32, usize)> {
-        let (value, value_length) = v32::read(reader)?;
+    pub fn buf_read<B: Buf>(buf: &mut B) -> Result<(i32, usize)> {
+        let (value, value_length) = v32::buf_read(buf)?;
         Ok((value.0, value_length))
     }
 
-    pub fn write(packet: &mut PacketBuilder, value: &i32) -> Result<()> {
-        Ok(packet.write(&v32(*value))?)
+    pub fn buf_write<B: BufMut>(value: &i32, buf: &mut B) -> Result<()> {
+        v32(*value).buf_write(buf)
     }
 }
-
-// TODO: merge both write functions... somehow
-// and also maybe reads but they're not so bad
 
 pub mod bool_option {
     use super::*;
 
-    pub fn read<R: Read, T: McRead>(
-        reader: &mut R,
-        _remaining_length: usize,
-    ) -> Result<(Option<T>, usize)> {
-        Ok(self::mc_read(reader)?)
-    }
-
-    pub fn write<T: McWrite>(packet: &mut PacketBuilder, value: &Option<T>) -> Result<()> {
-        packet.write(&value.is_some())?;
-
-        if let Some(value) = value {
-            packet.write(value)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn mc_read<R: std::io::prelude::Read, T: McRead>(
-        reader: &mut R,
-    ) -> std::io::Result<(Option<T>, usize)> {
-        let (has_value, mut total_value_len) = bool::read(reader)?;
+    pub fn buf_read<B: Buf, T: BufType>(buf: &mut B) -> Result<(Option<T>, usize)> {
+        let (has_value, mut total_value_len) = bool::buf_read(buf)?;
 
         let value = if has_value {
-            let (value, value_len) = T::read(reader)?;
+            let (value, value_len) = T::buf_read(buf)?;
             total_value_len += value_len;
             Some(value)
         } else {
@@ -58,14 +33,11 @@ pub mod bool_option {
         Ok((value, total_value_len))
     }
 
-    pub fn mc_write<W: std::io::prelude::Write, T: McWrite>(
-        writer: &mut W,
-        value: &Option<T>,
-    ) -> std::io::Result<()> {
-        value.is_some().write(writer)?;
+    pub fn buf_write<B: BufMut, T: BufType>(value: &Option<T>, buf: &mut B) -> Result<()> {
+        value.is_some().buf_write(buf)?;
 
         if let Some(value) = value {
-            value.write(writer)?;
+            value.buf_write(buf)?;
         }
 
         Ok(())
@@ -75,58 +47,35 @@ pub mod bool_option {
 pub mod length_prefix_bytes {
     use super::*;
 
-    pub fn read<R: Read>(reader: &mut R, _remaining_length: usize) -> Result<(Vec<u8>, usize)> {
-        Ok(self::mc_read(reader)?)
+    pub fn buf_read<B: Buf>(buf: &mut B) -> Result<(Vec<u8>, usize)> {
+        let (buf_len, buf_len_len) = i32_as_v32::buf_read(buf)?;
+        check_remaining(buf, buf_len as _)?;
+
+        let mut bytes = vec![0, buf_len as _];
+        buf.copy_to_slice(&mut bytes);
+
+        Ok((bytes, buf_len as usize + buf_len_len))
     }
 
-    pub fn write<B: AsRef<[u8]>>(packet: &mut PacketBuilder, value: B) -> Result<()> {
-        let bytes = value.as_ref();
+    pub fn buf_write<B: BufMut, BA: AsRef<[u8]>>(bytes: BA, buf: &mut B) -> Result<()> {
+        let bytes = bytes.as_ref();
 
-        i32_as_v32::write(packet, &(bytes.len() as _))?;
-        Ok(packet.write_byte_array(bytes)?)
-    }
-
-    pub fn mc_read<R: Read>(reader: &mut R) -> std::io::Result<(Vec<u8>, usize)> {
-        let (buffer_len, len_len) = v32::read(reader)?;
-
-        let mut buffer = vec![0; *buffer_len as usize];
-        reader.read_exact(&mut buffer)?;
-
-        Ok((buffer, *buffer_len as usize + len_len))
+        i32_as_v32::buf_write(&(bytes.len() as _), buf)?;
+        check_remaining_mut(buf, bytes.len())?;
+        buf.put_slice(bytes);
+        Ok(())
     }
 }
 
 pub mod length_prefix_array {
     use super::*;
 
-    pub fn read<R: Read, T: McRead>(
-        reader: &mut R,
-        _remaining_length: usize,
-    ) -> Result<(Vec<T>, usize)> {
-        Ok(self::mc_read(reader)?)
-    }
-
-    pub fn write<T: McWrite, A: AsRef<[T]>>(packet: &mut PacketBuilder, value: A) -> Result<()> {
-        let array = value.as_ref();
-
-        let values_count = array.len();
-        // TODO: return error rather than panic
-        assert!(values_count < (v32::MAX as usize));
-        i32_as_v32::write(packet, &(values_count as _))?;
-
-        for value in array {
-            packet.write(value)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn mc_read<R: Read, T: McRead>(reader: &mut R) -> std::io::Result<(Vec<T>, usize)> {
+    pub fn buf_read<B: Buf, T: BufType>(buf: &mut B) -> Result<(Vec<T>, usize)> {
         let mut values = Vec::new();
 
-        let (values_count, mut length) = v32::read(reader)?;
-        for _ in 0..values_count.0 {
-            let (value, value_length) = T::read(reader)?;
+        let (values_count, mut length) = i32_as_v32::buf_read(buf)?;
+        for _ in 0..values_count {
+            let (value, value_length) = T::buf_read(buf)?;
 
             values.push(value);
             length += value_length;
@@ -135,19 +84,16 @@ pub mod length_prefix_array {
         Ok((values, length))
     }
 
-    pub fn mc_write<W: std::io::prelude::Write, T: McWrite, A: AsRef<[T]>>(
-        writer: &mut W,
-        value: A,
-    ) -> std::io::Result<()> {
+    pub fn buf_write<B: BufMut, T: BufType, A: AsRef<[T]>>(value: A, buf: &mut B) -> Result<()> {
         let array = value.as_ref();
 
         let values_count = array.len();
         // TODO: return error rather than panic
-        assert!(values_count < (v32::MAX as usize));
-        v32(values_count as _).write(writer)?;
+        assert!(values_count < (super::super::v32::MAX as usize));
+        i32_as_v32::buf_write(&(values_count as _), buf)?;
 
         for value in array {
-            value.write(writer)?;
+            value.buf_write(buf)?;
         }
 
         Ok(())
@@ -157,15 +103,17 @@ pub mod length_prefix_array {
 pub mod remaining_bytes {
     use super::*;
 
-    pub fn read<R: Read>(reader: &mut R, remaining_length: usize) -> Result<(Vec<u8>, usize)> {
-        let mut buffer = vec![0; remaining_length];
-        reader.read_exact(&mut buffer)?;
-
-        Ok((buffer, remaining_length))
+    pub fn buf_read<B: Buf>(buf: &mut B) -> Result<(Vec<u8>, usize)> {
+        let len = buf.remaining();
+        let mut bytes = vec![0; len];
+        buf.copy_to_slice(&mut bytes);
+        Ok((bytes, len))
     }
 
-    pub fn write<B: AsRef<[u8]>>(packet: &mut PacketBuilder, value: B) -> Result<()> {
-        let bytes = value.as_ref();
-        Ok(packet.write_byte_array(bytes)?)
+    pub fn buf_write<B: BufMut, BA: AsRef<[u8]>>(bytes: BA, buf: &mut B) -> Result<()> {
+        let bytes = bytes.as_ref();
+        check_remaining_mut(buf, bytes.len())?;
+        buf.put_slice(bytes);
+        Ok(())
     }
 }

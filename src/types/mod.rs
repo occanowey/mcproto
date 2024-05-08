@@ -1,93 +1,108 @@
-use std::{
-    io::{Read, Result, Write},
-    ops::Deref,
-};
+use std::ops::Deref;
 
-use proxy::length_prefix_bytes;
-
+use bytes::{Buf, BufMut};
 use uuid::Uuid;
+
+use crate::error::{Error, Result};
+
+use self::proxy::length_prefix_bytes;
 
 pub mod proxy;
 
-pub trait McRead {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)>
-    where
-        Self: std::marker::Sized;
+pub trait BufType: Sized {
+    // todo: look into if size is needed
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)>;
+
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()>;
 }
 
-pub trait McWrite {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()>;
-}
+macro_rules! impl_primitive {
+    ($self:ty, $get_fn:ident, $put_fn:ident) => {
+        impl BufType for $self {
+            fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+                const SIZE: usize = core::mem::size_of::<$self>();
+                check_remaining(buf, SIZE)?;
 
-macro_rules! impl_rprimitive {
-    ($self:ty, $length:literal) => {
-        impl McRead for $self {
-            fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-                let mut buffer = [0; $length];
-                reader.read_exact(&mut buffer)?;
-                Ok((<$self>::from_be_bytes(buffer), $length))
+                Ok((buf.$get_fn(), SIZE))
             }
-        }
 
-        impl McWrite for $self {
-            fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-                writer.write_all(&self.to_be_bytes())
+            fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+                const SIZE: usize = core::mem::size_of::<$self>();
+                check_remaining_mut(buf, SIZE)?;
+
+                Ok(buf.$put_fn(*self))
             }
         }
     };
 }
 
+fn check_remaining<B: Buf>(buf: &B, size: usize) -> Result<()> {
+    if buf.remaining() < size {
+        return Err(Error::ReadOutOfBounds(buf.remaining(), size));
+    }
+
+    Ok(())
+}
+
+fn check_remaining_mut<B: BufMut>(buf: &B, size: usize) -> Result<()> {
+    if buf.remaining_mut() < size {
+        return Err(Error::ReadOutOfBounds(buf.remaining_mut(), size));
+    }
+
+    Ok(())
+}
+
 // Boolean
-impl McRead for bool {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        Ok((u8::read(reader)?.0 & 1 == 1, 1))
+impl BufType for bool {
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        check_remaining(buf, 1)?;
+        Ok((buf.get_u8() != 0, 1))
+    }
+
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        check_remaining_mut(buf, 1)?;
+        buf.put_u8(*self as _);
+        Ok(())
     }
 }
 
-impl McWrite for bool {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        (*self as u8).write(writer)
-    }
-}
-
-// Byte
-impl_rprimitive!(i8, 1);
+impl_primitive!(i8, get_i8, put_i8);
 
 // Unsigned Byte
-impl_rprimitive!(u8, 1);
+impl_primitive!(u8, get_u8, put_u8);
 
 // Short
-impl_rprimitive!(i16, 2);
+impl_primitive!(i16, get_i16, put_i16);
 
 // Unsigned Short
-impl_rprimitive!(u16, 2);
+impl_primitive!(u16, get_u16, put_u16);
 
 // Int
-impl_rprimitive!(i32, 4);
+impl_primitive!(i32, get_i32, put_i32);
 
 // Long
-impl_rprimitive!(i64, 8);
+impl_primitive!(i64, get_i64, put_i64);
 
 // Float
-impl_rprimitive!(f32, 4);
+impl_primitive!(f32, get_f32, put_f32);
 
 // Double
-impl_rprimitive!(f64, 8);
+impl_primitive!(f64, get_f64, put_f64);
 
 // String
-impl McRead for String {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        let (buffer, len) = length_prefix_bytes::mc_read(reader)?;
-        let string = String::from_utf8(buffer).unwrap();
+impl BufType for String {
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        let (bytes, len) = length_prefix_bytes::buf_read(buf)?;
+        let string = String::from_utf8(bytes)?;
 
         Ok((string, len))
     }
-}
 
-impl McWrite for String {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        v32(self.len() as i32).write(writer)?;
-        writer.write_all(self.as_bytes())
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        proxy::i32_as_v32::buf_write(&(self.len() as _), buf)?;
+        check_remaining_mut(buf, self.len())?;
+        buf.put(self.as_bytes());
+        Ok(())
     }
 }
 
@@ -98,8 +113,12 @@ pub enum TextComponent {
     Compound(()),
 }
 
-impl McRead for TextComponent {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+impl BufType for TextComponent {
+    fn buf_read<B: Buf>(_buf: &mut B) -> Result<(Self, usize)> {
+        todo!()
+    }
+
+    fn buf_write<B: BufMut>(&self, _buf: &mut B) -> Result<()> {
         todo!()
     }
 }
@@ -111,17 +130,15 @@ impl McRead for TextComponent {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Identifier(pub String);
 
-impl McRead for Identifier {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
-        let (data, length) = String::read(reader)?;
+impl BufType for Identifier {
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        let (data, length) = String::buf_read(buf)?;
 
         Ok((Identifier(data), length))
     }
-}
 
-impl McWrite for Identifier {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        self.0.write(writer)
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        self.0.buf_write(buf)
     }
 }
 
@@ -156,13 +173,13 @@ impl Deref for v32 {
     }
 }
 
-impl McRead for v32 {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+impl BufType for v32 {
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
         let mut acc = 0;
         let mut i = 0;
 
         loop {
-            let byte = u8::read(reader)?.0 as i32;
+            let byte = u8::buf_read(buf)?.0 as i32;
             acc |= (byte & 0x7F) << (i * 7);
 
             i += 1;
@@ -178,10 +195,8 @@ impl McRead for v32 {
 
         Ok((v32(acc), i))
     }
-}
 
-impl McWrite for v32 {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
         let mut input = self.0 as u32;
 
         loop {
@@ -189,11 +204,11 @@ impl McWrite for v32 {
                 break;
             }
 
-            ((input & 0x7F | 0x80) as u8).write(writer)?;
+            ((input & 0x7F | 0x80) as u8).buf_write(buf)?;
             input >>= 7;
         }
 
-        (input as u8).write(writer)
+        (input as u8).buf_write(buf)
     }
 }
 
@@ -210,18 +225,19 @@ impl McWrite for v32 {
 // Angle
 
 // UUID
-impl McRead for Uuid {
-    fn read<R: Read>(reader: &mut R) -> Result<(Self, usize)> {
+impl BufType for Uuid {
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        check_remaining(buf, 16)?;
         let mut buffer = [0; 16];
-        reader.read_exact(&mut buffer)?;
+        buf.copy_to_slice(&mut buffer);
 
         Ok((Uuid::from_bytes(buffer), buffer.len()))
     }
-}
 
-impl McWrite for Uuid {
-    fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
-        writer.write_all(self.as_bytes())
+    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        check_remaining_mut(buf, 16)?;
+        buf.put_slice(self.as_bytes());
+        Ok(())
     }
 }
 
@@ -231,32 +247,30 @@ impl McWrite for Uuid {
 
 // X Enum
 
-macro_rules! v32_enum_read_write {
+macro_rules! v32_prefix_enum {
     ($enum:ty => $unknown:ident { $($variant:ident = $val:expr),* $(,)? }) => {
-        impl crate::types::McRead for $enum {
-            fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<(Self, usize)> {
-                let (val, size) = crate::types::v32::read(reader)?;
+        impl crate::types::BufType for $enum {
+            fn buf_read<B: bytes::Buf>(buf: &mut B) -> crate::error::Result<(Self, usize)> {
+                let (val, size) = crate::types::proxy::i32_as_v32::buf_read(buf)?;
 
-                let r#enum = match val.0 {
+                let r#enum = match val {
                     $($val => Self::$variant,)*
                     unknown => Self::$unknown(unknown),
                 };
 
                 Ok((r#enum, size))
             }
-        }
 
-        impl crate::types::McWrite for $enum {
-            fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> crate::error::Result<()> {
                 let value = match self {
                     $(Self::$variant => $val,)*
                     Self::$unknown(unknown) => *unknown,
                 };
 
-                crate::types::v32(value).write(writer)
+                crate::types::proxy::i32_as_v32::buf_write(&value, buf)
             }
         }
     };
 }
 
-pub(crate) use v32_enum_read_write;
+pub(crate) use v32_prefix_enum;

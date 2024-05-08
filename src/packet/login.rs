@@ -1,13 +1,12 @@
-use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::{
     error::Result,
     types::{
         proxy::{i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes},
-        Identifier, McRead,
+        Identifier,
     },
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
-use std::io::Read;
 use uuid::Uuid;
 
 //
@@ -49,7 +48,8 @@ pub struct LoginSuccess {
 }
 
 mod login_success {
-    use crate::types::{proxy::bool_option, McRead, McWrite};
+    use crate::error::Result;
+    use crate::types::{proxy::bool_option, BufType};
 
     #[derive(Debug)]
     pub struct Property {
@@ -58,14 +58,11 @@ mod login_success {
         pub signature: Option<String>,
     }
 
-    impl McRead for Property {
-        fn read<R: std::io::prelude::Read>(reader: &mut R) -> std::io::Result<(Self, usize)>
-        where
-            Self: std::marker::Sized,
-        {
-            let (name, name_len) = String::read(reader)?;
-            let (value, value_len) = String::read(reader)?;
-            let (signature, signature_len) = bool_option::mc_read(reader)?;
+    impl BufType for Property {
+        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
+            let (name, name_len) = String::buf_read(buf)?;
+            let (value, value_len) = String::buf_read(buf)?;
+            let (signature, signature_len) = bool_option::buf_read(buf)?;
 
             let property = Property {
                 name,
@@ -75,15 +72,11 @@ mod login_success {
 
             Ok((property, name_len + value_len + signature_len))
         }
-    }
 
-    impl McWrite for Property {
-        fn write<W: std::io::prelude::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-            self.name.write(writer)?;
-            self.value.write(writer)?;
-            bool_option::mc_write(writer, &self.signature)?;
-
-            Ok(())
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
+            self.name.buf_write(buf)?;
+            self.value.buf_write(buf)?;
+            bool_option::buf_write(&self.signature, buf)
         }
     }
 }
@@ -112,7 +105,7 @@ impl_packet_enum!(c2s {
     0x00 => LoginStart,
     0x01 => EncryptionResponse,
     0x02 => LoginPluginResponse,
-    0x02 => LoginAcknowledged,
+    0x03 => LoginAcknowledged,
 });
 
 #[derive(Debug, Packet, PacketRead, PacketWrite)]

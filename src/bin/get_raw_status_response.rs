@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut handler = handler_from_stream(server)?;
 
     handler.write(Handshake {
-        protocol_version: 110.into(),
+        protocol_version: 110,
         server_address: "localhost".into(),
         server_port: 25565,
         next_state: NextState::Status,

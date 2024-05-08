@@ -73,16 +73,16 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let read_with = field.read_with.or_else(|| {
             field.with.map(|mut path| {
                 path.segments
-                    .push(syn::Ident::new("read", Span::call_site()).into());
+                    .push(syn::Ident::new("buf_read", Span::call_site()).into());
 
                 path
             })
         });
 
         let read_impl = if let Some(read_with) = read_with {
-            quote! { #read_with(__reader, __data_length - __length) }
+            quote! { #read_with(__buf) }
         } else {
-            quote! { <#field_type>::read(__reader) }
+            quote! { <#field_type as crate::types::BufType>::buf_read(__buf) }
         };
 
         (
@@ -104,12 +104,9 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketRead for #ident #ty #r#where {
-            fn read_data<__R: Read>(__reader: &mut __R, __data_length: usize) -> Result<Self> {
+            fn read_data<__B: ::bytes::Buf>(__buf: &mut __B) -> Result<Self> {
                 let mut __length = 0;
-
                 #(#field_read_impls)*
-
-                assert_eq!(__length, __data_length);
                 Ok(#struct_create_impl)
             }
         }
@@ -140,23 +137,23 @@ pub fn packet_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let write_with = field.write_with.or_else(|| {
             field.with.map(|mut path| {
                 path.segments
-                    .push(syn::Ident::new("write", Span::call_site()).into());
+                    .push(syn::Ident::new("buf_write", Span::call_site()).into());
 
                 path
             })
         });
 
         if let Some(write_with) = write_with {
-            quote! { #write_with(__packet, &#ident)?; }
+            quote! { #write_with(&#ident, __buf)?; }
         } else {
-            quote! { __packet.write(&#ident)?; }
+            quote! { crate::types::BufType::buf_write(&#ident, __buf)?; }
         }
     });
 
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketWrite for #ident #ty #r#where {
-            fn write_data(&self, __packet: &mut PacketBuilder) -> Result<()> {
+            fn write_data<__B: bytes::BufMut>(&self, __buf: &mut __B) -> Result<()> {
                 #(#field_write_impls)*
 
                 Ok(())

@@ -1,6 +1,6 @@
 use flate2::{write::ZlibEncoder, Compression};
 
-use crate::{types::McWrite, WriteExt};
+use crate::WriteExt;
 use std::io::{Result, Write};
 
 macro_rules! builder_write_type {
@@ -23,10 +23,6 @@ impl PacketBuilder {
         buffer.write_varint(id)?;
 
         Ok(PacketBuilder { _id: id, buffer })
-    }
-
-    pub fn write<T: McWrite>(&mut self, value: &T) -> Result<()> {
-        value.write(&mut self.buffer)
     }
 
     builder_write_type!(write_boolean, bool);

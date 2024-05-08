@@ -1,14 +1,16 @@
-use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::{
     error::Result,
     types::{
-        proxy::{bool_option, length_prefix_array, length_prefix_bytes, remaining_bytes},
-        v32, Identifier, McRead,
+        proxy::{
+            bool_option, i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes,
+        },
+        BufType, Identifier,
     },
 };
+use bytes::{Buf, BufMut};
 use packet_derive::{Packet, PacketRead, PacketWrite};
 use std::collections::HashMap;
-use std::io::Read;
 use uuid::Uuid;
 
 //
@@ -89,16 +91,15 @@ pub struct AddResourcePack {
 }
 
 impl PacketRead for AddResourcePack {
-    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
-        let (uuid, _) = Uuid::read(reader)?;
-        let (url, _) = String::read(reader)?;
-        let (hash, _) = String::read(reader)?;
-        let (forced, _) = bool::read(reader)?;
+    fn read_data<B: Buf>(data: &mut B) -> Result<Self> {
+        let (uuid, _) = Uuid::buf_read(data)?;
+        let (url, _) = String::buf_read(data)?;
+        let (hash, _) = String::buf_read(data)?;
+        let (forced, _) = bool::buf_read(data)?;
 
-        let (has_prompt_message, _) = bool::read(reader)?;
-
+        let (has_prompt_message, _) = bool::buf_read(data)?;
         let prompt_message = if has_prompt_message {
-            let (prompt_message, _) = length_prefix_bytes::read(reader, 0)?;
+            let (prompt_message, _) = length_prefix_bytes::buf_read(data)?;
             Some(prompt_message)
         } else {
             None
@@ -115,17 +116,17 @@ impl PacketRead for AddResourcePack {
 }
 
 impl PacketWrite for AddResourcePack {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        packet.write(&self.uuid)?;
-        packet.write(&self.url)?;
-        packet.write(&self.hash)?;
-        packet.write(&self.forced)?;
+    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        self.uuid.buf_write(buf)?;
+        self.url.buf_write(buf)?;
+        self.hash.buf_write(buf)?;
+        self.forced.buf_write(buf)?;
 
         if let Some(prompt_message) = &self.prompt_message {
-            packet.write(&true)?;
-            length_prefix_bytes::write(packet, prompt_message)?;
+            true.buf_write(buf)?;
+            length_prefix_bytes::buf_write(prompt_message, buf)?;
         } else {
-            packet.write(&false)?;
+            false.buf_write(buf)?;
         }
 
         Ok(())
@@ -146,41 +147,41 @@ pub struct UpdateTags {
 }
 
 pub mod update_tags {
-    use crate::types::{proxy::length_prefix_array, v32, Identifier, McRead, McWrite};
+    use crate::error::Result;
+    use crate::types::{proxy::length_prefix_array, v32, BufType, Identifier};
 
     #[derive(Debug)]
     pub struct Tag {
         pub name: Identifier,
-        pub entries: Vec<v32>,
+        pub entries: Vec<i32>,
     }
 
-    impl McRead for Tag {
-        fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<(Self, usize)> {
-            let (name, name_size) = Identifier::read(reader)?;
-            let (entries, entries_size) = length_prefix_array::mc_read(reader)?;
+    impl BufType for Tag {
+        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
+            let (name, name_size) = Identifier::buf_read(buf)?;
+            let (entries, entries_size): (Vec<v32>, _) = length_prefix_array::buf_read(buf)?;
 
-            let tag = Tag { name, entries };
+            let tag = Tag {
+                name,
+                entries: entries.into_iter().map(|i| i.0).collect(), // :/
+            };
             Ok((tag, name_size + entries_size))
         }
-    }
 
-    impl McWrite for Tag {
-        fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-            self.name.write(writer)?;
-            length_prefix_array::mc_write(writer, &self.entries)?;
-
-            Ok(())
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
+            self.name.buf_write(buf)?;
+            length_prefix_array::buf_write(&self.entries, buf)
         }
     }
 }
 
 impl PacketRead for UpdateTags {
-    fn read_data<R: Read>(reader: &mut R, _data_length: usize) -> Result<Self> {
+    fn read_data<B: Buf>(data: &mut B) -> Result<Self> {
         let mut tag_map = HashMap::new();
-        let (tags_count, _) = v32::read(reader)?;
-        for _ in 0..tags_count.0 {
-            let (registry, _) = Identifier::read(reader)?;
-            let (tags, _) = length_prefix_array::read(reader, 0)?;
+        let (tags_count, _) = i32_as_v32::buf_read(data)?;
+        for _ in 0..tags_count {
+            let (registry, _) = Identifier::buf_read(data)?;
+            let (tags, _) = length_prefix_array::buf_read(data)?;
 
             tag_map.insert(registry, tags);
         }
@@ -190,15 +191,15 @@ impl PacketRead for UpdateTags {
 }
 
 impl PacketWrite for UpdateTags {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
+    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
         let tag_map_count = self.tags.len();
         // TODO: return error rather than panic
-        assert!(tag_map_count < (v32::MAX as usize));
-        packet.write(&v32(tag_map_count as _))?;
+        assert!(tag_map_count < (crate::types::v32::MAX as usize));
+        i32_as_v32::buf_write(&(tag_map_count as _), buf)?;
 
         for (registry, tags) in &self.tags {
-            packet.write(registry)?;
-            length_prefix_array::write(packet, tags)?;
+            registry.buf_write(buf)?;
+            length_prefix_array::buf_write(tags, buf)?;
         }
 
         Ok(())
@@ -232,7 +233,8 @@ pub struct ClientInformation {
 }
 
 pub mod client_information {
-    use crate::types::{v32_enum_read_write, McRead, McWrite};
+    use crate::error::Result;
+    use crate::types::{v32_prefix_enum, BufType};
 
     #[derive(Debug)]
     pub enum ChatMode {
@@ -243,7 +245,7 @@ pub mod client_information {
         Unknown(i32),
     }
 
-    v32_enum_read_write!(
+    v32_prefix_enum!(
         ChatMode => Unknown
         {
             Enabled = 0,
@@ -263,9 +265,9 @@ pub mod client_information {
         pub hat_enabled: bool,
     }
 
-    impl McRead for DisplayedSkinParts {
-        fn read<R: std::io::Read>(reader: &mut R) -> std::io::Result<(Self, usize)> {
-            let (mask, size) = u8::read(reader)?;
+    impl BufType for DisplayedSkinParts {
+        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
+            let (mask, size) = u8::buf_read(buf)?;
 
             #[rustfmt::skip]
             let displayed_skin_parts = DisplayedSkinParts {
@@ -280,10 +282,8 @@ pub mod client_information {
 
             Ok((displayed_skin_parts, size))
         }
-    }
 
-    impl McWrite for DisplayedSkinParts {
-        fn write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
             #[rustfmt::skip]
             #[allow(clippy::identity_op)]
             let mask = (self.           cape_enabled as u8) << 0
@@ -294,7 +294,7 @@ pub mod client_information {
                          & (self.right_pants_leg_enabled as u8) << 5
                          & (self.            hat_enabled as u8) << 6;
 
-            mask.write(writer)
+            mask.buf_write(buf)
         }
     }
 
@@ -305,7 +305,7 @@ pub mod client_information {
         Unknown(i32),
     }
 
-    v32_enum_read_write!(
+    v32_prefix_enum!(
         MainHand => Unknown
         {
             Left = 0,
@@ -346,7 +346,7 @@ pub struct ResourcePackResponse {
 }
 
 mod resource_pack_response {
-    use crate::types::v32_enum_read_write;
+    use crate::types::v32_prefix_enum;
 
     #[derive(Debug)]
     pub enum Result {
@@ -362,7 +362,7 @@ mod resource_pack_response {
         Unknown(i32),
     }
 
-    v32_enum_read_write!(
+    v32_prefix_enum!(
         Result => Unknown
         {
             SuccessfullyDownloaded = 0,

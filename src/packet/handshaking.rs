@@ -1,10 +1,10 @@
-use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
+use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::{
     error::Result,
-    types::{proxy::i32_as_v32, v32_enum_read_write, McRead},
+    types::{proxy::i32_as_v32, v32_prefix_enum, BufType},
 };
+use bytes::{Buf, BufMut};
 use packet_derive::Packet;
-use std::io::Read;
 
 //
 // Serverbound
@@ -60,7 +60,7 @@ pub enum NextState {
     Unknown(i32),
 }
 
-v32_enum_read_write!(
+v32_prefix_enum!(
     NextState => Unknown
     {
         Status = 1,
@@ -90,12 +90,12 @@ impl Handshake {
 }
 
 impl PacketRead for Handshake {
-    fn read_data<R: Read>(reader: &mut R, _: usize) -> Result<Handshake> {
+    fn read_data<B: Buf>(data: &mut B) -> Result<Handshake> {
         // todo: maybe handle legacy ping?
-        let protocol_version = i32_as_v32::read(reader, 0)?.0;
-        let server_address = String::read(reader)?.0;
-        let server_port = u16::read(reader)?.0;
-        let next_state = NextState::read(reader)?.0;
+        let protocol_version = i32_as_v32::buf_read(data)?.0;
+        let server_address = String::buf_read(data)?.0;
+        let server_port = u16::buf_read(data)?.0;
+        let next_state = NextState::buf_read(data)?.0;
 
         let (server_address, forge) = ForgeHandshake::separate_address(server_address);
 
@@ -110,10 +110,10 @@ impl PacketRead for Handshake {
 }
 
 impl PacketWrite for Handshake {
-    fn write_data(&self, packet: &mut PacketBuilder) -> Result<()> {
-        i32_as_v32::write(packet, &self.protocol_version)?;
-        packet.write(&self.modified_address())?;
-        packet.write(&self.server_port)?;
-        Ok(packet.write(&self.next_state)?)
+    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+        i32_as_v32::buf_write(&self.protocol_version, buf)?;
+        self.modified_address().buf_write(buf)?;
+        self.server_port.buf_write(buf)?;
+        self.next_state.buf_write(buf)
     }
 }

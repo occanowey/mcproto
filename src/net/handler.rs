@@ -2,6 +2,7 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
+use bytes::{Bytes, BytesMut};
 use flate2::read::ZlibDecoder;
 use tracing::{debug, trace};
 
@@ -46,17 +47,17 @@ pub struct NetworkHandler<D: NetworkSide, S: NetworkState> {
 
 impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
     pub fn read<P: SidedStateReadPacket<D, S> + std::fmt::Debug>(&mut self) -> Result<P> {
-        let (id, data) = self.read_raw_data()?;
+        let (id, mut data) = self.read_raw_data()?;
         if id != P::PACKET_ID {
             return Err(Error::IncorectPacketId(P::PACKET_ID, id));
         }
 
-        let packet = P::read_data(&mut data.as_slice(), data.len());
+        let packet = P::read_data(&mut data);
         debug!(state = ?S::LABEL, ?packet, "read packet");
         packet
     }
 
-    pub fn read_raw_data(&mut self) -> Result<(i32, Vec<u8>)> {
+    pub fn read_raw_data(&mut self) -> Result<(i32, Bytes)> {
         let (length, _) = self.reader.read_varint()?;
 
         // allocate and read first length (packet length or compressed length)
@@ -85,7 +86,7 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         buffer.drain(0..id_len);
 
         trace!(id, ?buffer, "read raw packet");
-        Ok((id, buffer))
+        Ok((id, Bytes::from(buffer)))
     }
 
     pub fn write<P: SidedStateWritePacket<D, S> + std::fmt::Debug>(
@@ -95,7 +96,9 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         debug!(state = ?S::LABEL, ?packet, compression = ?self.compression, "writing packet");
 
         let mut builder = PacketBuilder::new(P::PACKET_ID)?;
-        packet.write_data(&mut builder)?;
+        let mut data = BytesMut::new();
+        packet.write_data(&mut data)?;
+        builder.write_byte_array(&data)?;
 
         if let Some(threshold) = self.compression {
             Ok(builder.write_compressed(&mut self.writer, threshold)?)

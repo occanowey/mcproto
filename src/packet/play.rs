@@ -1,7 +1,6 @@
-use super::{impl_packet_enum, Packet, PacketBuilder, PacketRead, PacketWrite};
-use crate::{error::Result, types::McRead};
+use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::error::Result;
 use packet_derive::{Packet, PacketRead, PacketWrite};
-use std::io::Read;
 
 //
 // Clientbound
