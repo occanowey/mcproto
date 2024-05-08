@@ -2,7 +2,7 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use flate2::read::ZlibDecoder;
 use tracing::{debug, trace};
 
@@ -13,7 +13,7 @@ use crate::net::state::{
     ConfigurationState, HandshakingState, LoginState, NetworkState, PlayState,
     SidedStateReadPacket, SidedStateWritePacket, StatusState,
 };
-use crate::{PacketBuilder, ReadExt};
+use crate::{varint::VarintReadExt, PacketBuilder};
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(
@@ -96,12 +96,10 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         debug!(state = ?S::LABEL, ?packet, compression = ?self.compression, "writing packet");
 
         let mut builder = PacketBuilder::new(P::PACKET_ID)?;
-        let mut data = BytesMut::new();
-        packet.write_data(&mut data)?;
-        builder.write_byte_array(&data)?;
+        packet.write_data(builder.buf_mut())?;
 
         if let Some(threshold) = self.compression {
-            Ok(builder.write_compressed(&mut self.writer, threshold)?)
+            Ok(builder.write_to_compressed(&mut self.writer, threshold)?)
         } else {
             Ok(builder.write_to(&mut self.writer)?)
         }

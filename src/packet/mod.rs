@@ -11,12 +11,12 @@ use std::io::{Read, Write};
 use crate::{
     error::{Error, Result},
     types::proxy::i32_as_v32,
-    ReadExt,
+    varint::VarintReadExt,
 };
 
 pub use builder::PacketBuilder;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes};
 
 macro_rules! impl_packet_enum {
     ($side:ident {$($id:literal => $packet:ident),* $(,)?}) => {
@@ -75,10 +75,8 @@ pub trait PacketRead: Packet + Sized {
 pub trait PacketWrite: Packet {
     fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
         let mut packet = PacketBuilder::new(Self::PACKET_ID)?;
-        let mut data = BytesMut::new();
-        self.write_data(&mut data)?;
-        packet.write_byte_array(&data)?;
-        Ok(packet.write_to(writer)?)
+        self.write_data(packet.buf_mut())?;
+        packet.write_to(writer)
     }
 
     fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()>;
