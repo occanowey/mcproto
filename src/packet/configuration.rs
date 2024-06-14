@@ -170,7 +170,8 @@ pub mod update_tags {
 
         fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
             self.name.buf_write(buf)?;
-            length_prefix_array::buf_write(&self.entries, buf)
+            let entries = self.entries.iter().map(|i| v32(*i)).collect::<Vec<_>>(); // still :/
+            length_prefix_array::buf_write(&entries, buf)
         }
     }
 }

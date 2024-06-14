@@ -51,7 +51,7 @@ pub mod length_prefix_bytes {
         let (buf_len, buf_len_len) = i32_as_v32::buf_read(buf)?;
         check_remaining(buf, buf_len as _)?;
 
-        let mut bytes = vec![0, buf_len as _];
+        let mut bytes = vec![0; buf_len as _];
         buf.copy_to_slice(&mut bytes);
 
         Ok((bytes, buf_len as usize + buf_len_len))

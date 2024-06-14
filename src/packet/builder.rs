@@ -18,7 +18,7 @@ pub struct PacketBuilder {
 impl PacketBuilder {
     pub fn new(id: i32) -> Result<Self> {
         let mut buffer = BytesMut::new();
-        id.buf_write(&mut buffer)?;
+        i32_as_v32::buf_write(&id, &mut buffer)?;
 
         Ok(Self { _id: id, buffer })
     }
