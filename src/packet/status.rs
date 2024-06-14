@@ -1,5 +1,4 @@
 use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
-use crate::error::Result;
 use packet_derive::{Packet, PacketRead, PacketWrite};
 
 //

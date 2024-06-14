@@ -1,8 +1,5 @@
 use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
-use crate::{
-    error::Result,
-    types::{proxy::i32_as_v32, v32_prefix_enum, BufType},
-};
+use crate::types::{proxy::i32_as_v32, v32_prefix_enum, BufType, ReadError};
 use bytes::{Buf, BufMut};
 use packet_derive::Packet;
 
@@ -90,12 +87,12 @@ impl Handshake {
 }
 
 impl PacketRead for Handshake {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Handshake> {
+    fn read_data<B: Buf>(data: &mut B) -> Result<Handshake, ReadError> {
         // todo: maybe handle legacy ping?
-        let protocol_version = i32_as_v32::buf_read(data)?.0;
-        let server_address = String::buf_read(data)?.0;
-        let server_port = u16::buf_read(data)?.0;
-        let next_state = NextState::buf_read(data)?.0;
+        let protocol_version = i32_as_v32::buf_read(data)?;
+        let server_address = String::buf_read(data)?;
+        let server_port = u16::buf_read(data)?;
+        let next_state = NextState::buf_read(data)?;
 
         let (server_address, forge) = ForgeHandshake::separate_address(server_address);
 
@@ -110,10 +107,10 @@ impl PacketRead for Handshake {
 }
 
 impl PacketWrite for Handshake {
-    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-        i32_as_v32::buf_write(&self.protocol_version, buf)?;
-        self.modified_address().buf_write(buf)?;
-        self.server_port.buf_write(buf)?;
-        self.next_state.buf_write(buf)
+    fn write_data<B: BufMut>(&self, buf: &mut B) {
+        i32_as_v32::buf_write(&self.protocol_version, buf);
+        self.modified_address().buf_write(buf);
+        self.server_port.buf_write(buf);
+        self.next_state.buf_write(buf);
     }
 }

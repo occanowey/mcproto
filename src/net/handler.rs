@@ -54,7 +54,7 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
 
         let packet = P::read_data(&mut data);
         debug!(state = ?S::LABEL, ?packet, "read packet");
-        packet
+        Ok(packet?)
     }
 
     pub fn read_raw_data(&mut self) -> Result<(i32, Bytes)> {
@@ -96,7 +96,7 @@ impl<D: NetworkSide, S: NetworkState> NetworkHandler<D, S> {
         debug!(state = ?S::LABEL, ?packet, compression = ?self.compression, "writing packet");
 
         let mut builder = PacketBuilder::new(P::PACKET_ID)?;
-        packet.write_data(builder.buf_mut())?;
+        packet.write_data(builder.buf_mut());
 
         if let Some(threshold) = self.compression {
             Ok(builder.write_to_compressed(&mut self.writer, threshold)?)

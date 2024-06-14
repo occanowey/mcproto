@@ -1,12 +1,7 @@
 use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
-use crate::{
-    error::Result,
-    types::{
-        proxy::{
-            bool_option, i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes,
-        },
-        BufType, Identifier,
-    },
+use crate::types::{
+    proxy::{bool_option, i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes},
+    BufType, Identifier, ReadError,
 };
 use bytes::{Buf, BufMut};
 use packet_derive::{Packet, PacketRead, PacketWrite};
@@ -91,15 +86,15 @@ pub struct AddResourcePack {
 }
 
 impl PacketRead for AddResourcePack {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Self> {
-        let (uuid, _) = Uuid::buf_read(data)?;
-        let (url, _) = String::buf_read(data)?;
-        let (hash, _) = String::buf_read(data)?;
-        let (forced, _) = bool::buf_read(data)?;
+    fn read_data<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
+        let uuid = Uuid::buf_read(data)?;
+        let url = String::buf_read(data)?;
+        let hash = String::buf_read(data)?;
+        let forced = bool::buf_read(data)?;
 
-        let (has_prompt_message, _) = bool::buf_read(data)?;
+        let has_prompt_message = bool::buf_read(data)?;
         let prompt_message = if has_prompt_message {
-            let (prompt_message, _) = length_prefix_bytes::buf_read(data)?;
+            let prompt_message = length_prefix_bytes::buf_read(data)?;
             Some(prompt_message)
         } else {
             None
@@ -116,20 +111,18 @@ impl PacketRead for AddResourcePack {
 }
 
 impl PacketWrite for AddResourcePack {
-    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-        self.uuid.buf_write(buf)?;
-        self.url.buf_write(buf)?;
-        self.hash.buf_write(buf)?;
-        self.forced.buf_write(buf)?;
+    fn write_data<B: BufMut>(&self, buf: &mut B) {
+        self.uuid.buf_write(buf);
+        self.url.buf_write(buf);
+        self.hash.buf_write(buf);
+        self.forced.buf_write(buf);
 
         if let Some(prompt_message) = &self.prompt_message {
-            true.buf_write(buf)?;
-            length_prefix_bytes::buf_write(prompt_message, buf)?;
+            true.buf_write(buf);
+            length_prefix_bytes::buf_write(prompt_message, buf);
         } else {
-            false.buf_write(buf)?;
+            false.buf_write(buf);
         }
-
-        Ok(())
     }
 }
 
@@ -147,7 +140,7 @@ pub struct UpdateTags {
 }
 
 pub mod update_tags {
-    use crate::error::Result;
+    use crate::types::ReadError;
     use crate::types::{proxy::length_prefix_array, v32, BufType, Identifier};
 
     #[derive(Debug)]
@@ -157,9 +150,9 @@ pub mod update_tags {
     }
 
     impl BufType for Tag {
-        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
-            let (name, name_size) = Identifier::buf_read(buf)?;
-            let (entries, entries_size): (Vec<v32>, _) = length_prefix_array::buf_read(buf)?;
+        fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
+            let (name, name_size) = Identifier::buf_read_len(buf)?;
+            let (entries, entries_size): (Vec<v32>, _) = length_prefix_array::buf_read_len(buf)?;
 
             let tag = Tag {
                 name,
@@ -168,8 +161,8 @@ pub mod update_tags {
             Ok((tag, name_size + entries_size))
         }
 
-        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
-            self.name.buf_write(buf)?;
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
+            self.name.buf_write(buf);
             let entries = self.entries.iter().map(|i| v32(*i)).collect::<Vec<_>>(); // still :/
             length_prefix_array::buf_write(&entries, buf)
         }
@@ -177,12 +170,12 @@ pub mod update_tags {
 }
 
 impl PacketRead for UpdateTags {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Self> {
+    fn read_data<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
         let mut tag_map = HashMap::new();
-        let (tags_count, _) = i32_as_v32::buf_read(data)?;
+        let tags_count = i32_as_v32::buf_read(data)?;
         for _ in 0..tags_count {
-            let (registry, _) = Identifier::buf_read(data)?;
-            let (tags, _) = length_prefix_array::buf_read(data)?;
+            let registry = Identifier::buf_read(data)?;
+            let tags = length_prefix_array::buf_read(data)?;
 
             tag_map.insert(registry, tags);
         }
@@ -192,18 +185,16 @@ impl PacketRead for UpdateTags {
 }
 
 impl PacketWrite for UpdateTags {
-    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+    fn write_data<B: BufMut>(&self, buf: &mut B) {
         let tag_map_count = self.tags.len();
         // TODO: return error rather than panic
         assert!(tag_map_count < (crate::types::v32::MAX as usize));
-        i32_as_v32::buf_write(&(tag_map_count as _), buf)?;
+        i32_as_v32::buf_write(&(tag_map_count as _), buf);
 
         for (registry, tags) in &self.tags {
-            registry.buf_write(buf)?;
-            length_prefix_array::buf_write(tags, buf)?;
+            registry.buf_write(buf);
+            length_prefix_array::buf_write(tags, buf);
         }
-
-        Ok(())
     }
 }
 
@@ -234,8 +225,7 @@ pub struct ClientInformation {
 }
 
 pub mod client_information {
-    use crate::error::Result;
-    use crate::types::{v32_prefix_enum, BufType};
+    use crate::types::{v32_prefix_enum, BufType, ReadError};
 
     #[derive(Debug)]
     pub enum ChatMode {
@@ -267,8 +257,8 @@ pub mod client_information {
     }
 
     impl BufType for DisplayedSkinParts {
-        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
-            let (mask, size) = u8::buf_read(buf)?;
+        fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
+            let (mask, size) = u8::buf_read_len(buf)?;
 
             #[rustfmt::skip]
             let displayed_skin_parts = DisplayedSkinParts {
@@ -284,7 +274,7 @@ pub mod client_information {
             Ok((displayed_skin_parts, size))
         }
 
-        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
             #[rustfmt::skip]
             #[allow(clippy::identity_op)]
             let mask = (self.           cape_enabled as u8) << 0
@@ -295,7 +285,7 @@ pub mod client_information {
                          & (self.right_pants_leg_enabled as u8) << 5
                          & (self.            hat_enabled as u8) << 6;
 
-            mask.buf_write(buf)
+            mask.buf_write(buf);
         }
     }
 

@@ -10,7 +10,7 @@ use std::io::{Read, Write};
 
 use crate::{
     error::{Error, Result},
-    types::proxy::i32_as_v32,
+    types::{proxy::i32_as_v32, ReadError},
     varint::VarintReadExt,
 };
 
@@ -34,7 +34,7 @@ macro_rules! impl_packet_enum {
                     !matches!(self, Self::Unknown(_))
                 }
 
-                pub fn from_id_data<B: bytes::Buf>(id: i32, data: &mut B) -> crate::error::Result<Self> {
+                pub fn from_id_data<B: bytes::Buf>(id: i32, data: &mut B) -> std::result::Result<Self, crate::types::ReadError> {
                     match id {
                         $($id => <super::$packet as crate::packet::PacketRead>::read_data(data).map(Self::$packet),)*
 
@@ -60,24 +60,24 @@ pub trait PacketRead: Packet + Sized {
         reader.read_exact(&mut data)?;
         let mut data = Bytes::from(data);
 
-        let (id, _): (i32, usize) = i32_as_v32::buf_read(&mut data)?;
+        let id = i32_as_v32::buf_read(&mut data)?;
         if id != Self::PACKET_ID {
             return Err(Error::IncorectPacketId(Self::PACKET_ID, id));
         }
 
-        Self::read_data(&mut data)
+        Ok(Self::read_data(&mut data)?)
     }
 
     /// Read fields after length & id
-    fn read_data<B: Buf>(data: &mut B) -> Result<Self>;
+    fn read_data<B: Buf>(data: &mut B) -> std::result::Result<Self, ReadError>;
 }
 
 pub trait PacketWrite: Packet {
     fn write<W: Write>(&self, writer: &mut W) -> Result<()> {
         let mut packet = PacketBuilder::new(Self::PACKET_ID)?;
-        self.write_data(packet.buf_mut())?;
+        self.write_data(packet.buf_mut());
         packet.write_to(writer)
     }
 
-    fn write_data<B: BufMut>(&self, buf: &mut B) -> Result<()>;
+    fn write_data<B: BufMut>(&self, buf: &mut B);
 }

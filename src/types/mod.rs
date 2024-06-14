@@ -3,50 +3,54 @@ use std::ops::Deref;
 use bytes::{Buf, BufMut};
 use uuid::Uuid;
 
-use crate::error::{Error, Result};
+pub mod proxy;
 
 use self::proxy::length_prefix_bytes;
 
-pub mod proxy;
+#[derive(Debug, thiserror::Error)]
+pub enum ReadError {
+    #[error("read out of bounds: len is: {0}, but tried to read: {1}")]
+    ReadOutOfBounds(usize, usize),
+
+    #[error("utf8 error: {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("varint too large")]
+    VarIntTooLarge,
+}
+
+type Result<T> = std::result::Result<T, ReadError>;
 
 pub trait BufType: Sized {
-    // todo: look into if size is needed
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)>;
+    fn buf_read<B: Buf>(buf: &mut B) -> Result<Self> {
+        Self::buf_read_len(buf).map(|value| value.0)
+    }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()>;
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)>;
+
+    fn buf_write<B: BufMut>(&self, buf: &mut B);
 }
 
 macro_rules! impl_primitive {
     ($self:ty, $get_fn:ident, $put_fn:ident) => {
         impl BufType for $self {
-            fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+            fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
                 const SIZE: usize = core::mem::size_of::<$self>();
-                check_remaining(buf, SIZE)?;
+                ensure_remaining(buf, SIZE)?;
 
                 Ok((buf.$get_fn(), SIZE))
             }
 
-            fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-                const SIZE: usize = core::mem::size_of::<$self>();
-                check_remaining_mut(buf, SIZE)?;
-
-                Ok(buf.$put_fn(*self))
+            fn buf_write<B: BufMut>(&self, buf: &mut B) {
+                buf.$put_fn(*self)
             }
         }
     };
 }
 
-fn check_remaining<B: Buf>(buf: &B, size: usize) -> Result<()> {
+fn ensure_remaining<B: Buf>(buf: &B, size: usize) -> Result<()> {
     if buf.remaining() < size {
-        return Err(Error::ReadOutOfBounds(buf.remaining(), size));
-    }
-
-    Ok(())
-}
-
-fn check_remaining_mut<B: BufMut>(buf: &B, size: usize) -> Result<()> {
-    if buf.remaining_mut() < size {
-        return Err(Error::ReadOutOfBounds(buf.remaining_mut(), size));
+        return Err(ReadError::ReadOutOfBounds(buf.remaining(), size));
     }
 
     Ok(())
@@ -54,15 +58,13 @@ fn check_remaining_mut<B: BufMut>(buf: &B, size: usize) -> Result<()> {
 
 // Boolean
 impl BufType for bool {
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
-        check_remaining(buf, 1)?;
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        ensure_remaining(buf, 1)?;
         Ok((buf.get_u8() != 0, 1))
     }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-        check_remaining_mut(buf, 1)?;
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
         buf.put_u8(*self as _);
-        Ok(())
     }
 }
 
@@ -91,18 +93,17 @@ impl_primitive!(f64, get_f64, put_f64);
 
 // String
 impl BufType for String {
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
-        let (bytes, len) = length_prefix_bytes::buf_read(buf)?;
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        let (bytes, len) = length_prefix_bytes::buf_read_len(buf)?;
         let string = String::from_utf8(bytes)?;
 
         Ok((string, len))
     }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-        proxy::i32_as_v32::buf_write(&(self.len() as _), buf)?;
-        check_remaining_mut(buf, self.len())?;
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
+        proxy::i32_as_v32::buf_write(&(self.len() as _), buf);
+
         buf.put(self.as_bytes());
-        Ok(())
     }
 }
 
@@ -114,11 +115,11 @@ pub enum TextComponent {
 }
 
 impl BufType for TextComponent {
-    fn buf_read<B: Buf>(_buf: &mut B) -> Result<(Self, usize)> {
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
         todo!()
     }
 
-    fn buf_write<B: BufMut>(&self, _buf: &mut B) -> Result<()> {
+    fn buf_write<B: BufMut>(&self, _buf: &mut B) {
         todo!()
     }
 }
@@ -131,13 +132,13 @@ impl BufType for TextComponent {
 pub struct Identifier(pub String);
 
 impl BufType for Identifier {
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
-        let (data, length) = String::buf_read(buf)?;
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        let (data, length) = String::buf_read_len(buf)?;
 
         Ok((Identifier(data), length))
     }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
         self.0.buf_write(buf)
     }
 }
@@ -174,18 +175,17 @@ impl Deref for v32 {
 }
 
 impl BufType for v32 {
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
         let mut acc = 0;
         let mut i = 0;
 
         loop {
-            let byte = u8::buf_read(buf)?.0 as i32;
+            let byte = u8::buf_read(buf)? as i32;
             acc |= (byte & 0x7F) << (i * 7);
 
             i += 1;
             if i > 5 {
-                // TODO: return actual error
-                panic!("varint too big");
+                return Err(ReadError::VarIntTooLarge);
             }
 
             if (byte & 0b10000000) == 0 {
@@ -196,7 +196,7 @@ impl BufType for v32 {
         Ok((v32(acc), i))
     }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
         let mut input = self.0 as u32;
 
         loop {
@@ -204,7 +204,7 @@ impl BufType for v32 {
                 break;
             }
 
-            ((input & 0x7F | 0x80) as u8).buf_write(buf)?;
+            ((input & 0x7F | 0x80) as u8).buf_write(buf);
             input >>= 7;
         }
 
@@ -226,18 +226,16 @@ impl BufType for v32 {
 
 // UUID
 impl BufType for Uuid {
-    fn buf_read<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
-        check_remaining(buf, 16)?;
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+        ensure_remaining(buf, 16)?;
         let mut buffer = [0; 16];
         buf.copy_to_slice(&mut buffer);
 
         Ok((Uuid::from_bytes(buffer), buffer.len()))
     }
 
-    fn buf_write<B: BufMut>(&self, buf: &mut B) -> Result<()> {
-        check_remaining_mut(buf, 16)?;
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
         buf.put_slice(self.as_bytes());
-        Ok(())
     }
 }
 
@@ -250,8 +248,8 @@ impl BufType for Uuid {
 macro_rules! v32_prefix_enum {
     ($enum:ty => $unknown:ident { $($variant:ident = $val:expr),* $(,)? }) => {
         impl crate::types::BufType for $enum {
-            fn buf_read<B: bytes::Buf>(buf: &mut B) -> crate::error::Result<(Self, usize)> {
-                let (val, size) = crate::types::proxy::i32_as_v32::buf_read(buf)?;
+            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> std::result::Result<(Self, usize), crate::types::ReadError> {
+                let (val, size) = crate::types::proxy::i32_as_v32::buf_read_len(buf)?;
 
                 let r#enum = match val {
                     $($val => Self::$variant,)*
@@ -261,7 +259,7 @@ macro_rules! v32_prefix_enum {
                 Ok((r#enum, size))
             }
 
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> crate::error::Result<()> {
+            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
                 let value = match self {
                     $(Self::$variant => $val,)*
                     Self::$unknown(unknown) => *unknown,

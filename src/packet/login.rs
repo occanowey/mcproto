@@ -1,10 +1,7 @@
 use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
-use crate::{
-    error::Result,
-    types::{
-        proxy::{i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes},
-        Identifier,
-    },
+use crate::types::{
+    proxy::{i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes},
+    Identifier,
 };
 use packet_derive::{Packet, PacketRead, PacketWrite};
 use uuid::Uuid;
@@ -48,7 +45,7 @@ pub struct LoginSuccess {
 }
 
 mod login_success {
-    use crate::error::Result;
+    use crate::types::ReadError;
     use crate::types::{proxy::bool_option, BufType};
 
     #[derive(Debug)]
@@ -59,10 +56,10 @@ mod login_success {
     }
 
     impl BufType for Property {
-        fn buf_read<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize)> {
-            let (name, name_len) = String::buf_read(buf)?;
-            let (value, value_len) = String::buf_read(buf)?;
-            let (signature, signature_len) = bool_option::buf_read(buf)?;
+        fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
+            let (name, name_len) = String::buf_read_len(buf)?;
+            let (value, value_len) = String::buf_read_len(buf)?;
+            let (signature, signature_len) = bool_option::buf_read_len(buf)?;
 
             let property = Property {
                 name,
@@ -73,10 +70,10 @@ mod login_success {
             Ok((property, name_len + value_len + signature_len))
         }
 
-        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) -> Result<()> {
-            self.name.buf_write(buf)?;
-            self.value.buf_write(buf)?;
-            bool_option::buf_write(&self.signature, buf)
+        fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
+            self.name.buf_write(buf);
+            self.value.buf_write(buf);
+            bool_option::buf_write(&self.signature, buf);
         }
     }
 }

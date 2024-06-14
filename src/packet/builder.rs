@@ -3,11 +3,7 @@ use std::io::Write;
 use bytes::{BufMut, BytesMut};
 use flate2::{write::ZlibEncoder, Compression};
 
-use crate::{
-    error::Result,
-    types::{proxy::i32_as_v32, BufType},
-    varint::VarintWriteExt,
-};
+use crate::{error::Result, types::proxy::i32_as_v32, varint::VarintWriteExt};
 
 #[derive(Debug)]
 pub struct PacketBuilder {
@@ -18,7 +14,7 @@ pub struct PacketBuilder {
 impl PacketBuilder {
     pub fn new(id: i32) -> Result<Self> {
         let mut buffer = BytesMut::new();
-        i32_as_v32::buf_write(&id, &mut buffer)?;
+        i32_as_v32::buf_write(&id, &mut buffer);
 
         Ok(Self { _id: id, buffer })
     }
@@ -36,14 +32,14 @@ impl PacketBuilder {
         let mut compressed_buffer = BytesMut::new();
 
         let compressed_buffer = if self.buffer.len() >= threshold {
-            i32_as_v32::buf_write(&(self.buffer.len() as _), &mut compressed_buffer)?;
+            i32_as_v32::buf_write(&(self.buffer.len() as _), &mut compressed_buffer);
 
             let mut encoder = ZlibEncoder::new(compressed_buffer.writer(), Compression::default());
             encoder.write_all(&self.buffer)?;
 
             encoder.finish()?.into_inner()
         } else {
-            i32_as_v32::buf_write(&0, &mut compressed_buffer)?;
+            i32_as_v32::buf_write(&0, &mut compressed_buffer);
             compressed_buffer.put(self.buffer.clone());
             compressed_buffer
         };

@@ -87,10 +87,7 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         (
             value_ident.clone(),
-            quote! {
-                let (#value_ident, __value_length) = #read_impl?;
-                __length += __value_length;
-            },
+            quote! { let #value_ident = #read_impl?; },
         )
     });
 
@@ -104,8 +101,7 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketRead for #ident #ty #r#where {
-            fn read_data<__B: ::bytes::Buf>(__buf: &mut __B) -> Result<Self> {
-                let mut __length = 0;
+            fn read_data<__B: ::bytes::Buf>(__buf: &mut __B) -> std::result::Result<Self, crate::types::ReadError> {
                 #(#field_read_impls)*
                 Ok(#struct_create_impl)
             }
@@ -144,19 +140,17 @@ pub fn packet_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         if let Some(write_with) = write_with {
-            quote! { #write_with(&#ident, __buf)?; }
+            quote! { #write_with(&#ident, __buf); }
         } else {
-            quote! { crate::types::BufType::buf_write(&#ident, __buf)?; }
+            quote! { crate::types::BufType::buf_write(&#ident, __buf); }
         }
     });
 
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketWrite for #ident #ty #r#where {
-            fn write_data<__B: bytes::BufMut>(&self, __buf: &mut __B) -> Result<()> {
+            fn write_data<__B: bytes::BufMut>(&self, __buf: &mut __B) {
                 #(#field_write_impls)*
-
-                Ok(())
             }
         }
     })
