@@ -8,7 +8,6 @@ pub mod side {
     impl NetworkSide for Client {}
 }
 
-mod encryption;
 mod handler;
 
 pub use handler::{handler_from_stream, NetworkHandler};

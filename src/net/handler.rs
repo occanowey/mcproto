@@ -2,12 +2,14 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use crypto_common::generic_array::GenericArray;
+use crypto_common::KeyIvInit;
 use flate2::write::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;
 use tracing::{debug, trace};
 
-use super::encryption::{EncryptableBufReader, EncryptableWriter};
 use crate::error::{Error, Result};
 use crate::handshake;
 use crate::net::side::NetworkSide;
@@ -19,32 +21,25 @@ use crate::types::ReadError;
 pub fn handler_from_stream<Side: NetworkSide>(
     stream: TcpStream,
 ) -> Result<NetworkHandler<Side, handshake::HandshakingState>> {
-    let reader = EncryptableBufReader::wrap(stream.try_clone()?);
-    let writer = EncryptableWriter::wrap(stream.try_clone()?);
-
     Ok(NetworkHandler {
-        recv_buffer: BytesMut::new(),
         stream,
+        recv_buffer: BytesMut::new(),
+        ciphers: None,
+        compression_threshold: None,
+
         _side: PhantomData,
         _state: PhantomData,
-
-        compression: None,
-
-        reader,
-        writer,
     })
 }
 
 pub struct NetworkHandler<Side: NetworkSide, State: NetworkState> {
-    recv_buffer: BytesMut,
     stream: TcpStream,
+    recv_buffer: BytesMut,
+    ciphers: Option<(cfb8::Encryptor<aes::Aes128>, cfb8::Decryptor<aes::Aes128>)>,
+    compression_threshold: Option<usize>,
+
     _side: PhantomData<Side>,
     _state: PhantomData<State>,
-
-    compression: Option<usize>,
-
-    reader: EncryptableBufReader<TcpStream>,
-    writer: EncryptableWriter<TcpStream>,
 }
 
 impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
@@ -62,11 +57,24 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
 
             let mut buf = [0; 512];
             // TODO: timeout
-            let len = self.reader.read(&mut buf)?;
+            let len = self.stream.read(&mut buf)?;
             if len == 0 {
                 return Err(Error::StreamShutdown);
             }
+
             self.recv_buffer.extend_from_slice(&buf[0..len]);
+
+            if let Some((_, cipher)) = &mut self.ciphers {
+                // TODO: this was copied from the old enc struct, should check if theres a better way to do this
+
+                // safe as long as `<cfb8::Decryptor as BlockSizeUser>::BlockSize == typenum::U1`
+                // which is true as of 0.8.1
+                let start = self.recv_buffer.len() - len;
+                let blocks: &mut [GenericArray<u8, crypto_common::typenum::U1>] =
+                    unsafe { std::mem::transmute(&mut self.recv_buffer[start..]) };
+
+                cipher.decrypt_blocks_mut(blocks);
+            }
         }
     }
 
@@ -88,7 +96,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         let length = i32_as_v32::buf_read(&mut self.recv_buffer)? as usize;
 
         // compression
-        let mut body = if self.compression.is_some() {
+        let mut body = if self.compression_threshold.is_some() {
             let (body_length, body_length_length) =
                 i32_as_v32::buf_read_len(&mut self.recv_buffer).unwrap();
 
@@ -117,7 +125,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         &mut self,
         packet: Packet,
     ) -> Result<()> {
-        debug!(state = ?State::LABEL, ?packet, compression = ?self.compression, "writing packet");
+        debug!(state = ?State::LABEL, ?packet, compression = ?self.compression_threshold, "writing packet");
 
         // id + body
         let mut packet_data = BytesMut::new();
@@ -125,7 +133,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         packet.write_body(&mut packet_data);
 
         // compression
-        let mut compressed_data = if let Some(threshold) = self.compression {
+        let mut compressed_data = if let Some(threshold) = self.compression_threshold {
             let mut data = BytesMut::new();
 
             if packet_data.len() >= threshold {
@@ -149,37 +157,51 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         i32_as_v32::buf_write(&(compressed_data.len() as _), &mut data);
         data.put(&mut compressed_data);
 
+        // encryption
+        if let Some((cipher, _)) = &mut self.ciphers {
+            // TODO: this was copied from the old enc struct, should check if theres a better way to do this
+
+            // safe as long as `<cfb8::Encryptor as BlockSizeUser>::BlockSize == typenum::U1`
+            // which is true as of 0.8.1
+            let blocks = unsafe {
+                &mut *(&mut data as &mut [u8] as *mut [u8]
+                    as *mut [GenericArray<u8, crypto_common::typenum::U1>])
+            };
+
+            cipher.encrypt_blocks_mut(blocks);
+        }
+
         // write
-        self.writer.write_all(&data)?;
+        self.stream.write_all(&data)?;
         Ok(())
     }
 
     pub fn set_compression_threshold<T: Into<Option<usize>>>(&mut self, threshold: T) {
         let threshold = threshold.into();
         debug!(state = ?State::LABEL, ?threshold, "setting threshold");
-        self.compression = threshold;
+        self.compression_threshold = threshold;
     }
 
     pub fn set_encryption_secret(&mut self, secret: &[u8]) {
         debug!(state = ?State::LABEL, "setting encryption");
 
-        self.reader.set_secret(secret);
-        self.writer.set_secret(secret);
+        let encryption_cipher = cfb8::Encryptor::new(secret.into(), secret.into());
+        let decryption_cipher = cfb8::Decryptor::new(secret.into(), secret.into());
+
+        self.ciphers.replace((encryption_cipher, decryption_cipher));
     }
 
     pub fn next_state<NextState: NextHandlerState<State>>(self) -> NetworkHandler<Side, NextState> {
         debug!(state = ?State::LABEL, "switching to {:?}", NextState::LABEL);
 
         NetworkHandler {
-            recv_buffer: self.recv_buffer,
             stream: self.stream,
+            recv_buffer: self.recv_buffer,
+            ciphers: self.ciphers,
+            compression_threshold: self.compression_threshold,
+
             _side: PhantomData,
             _state: PhantomData,
-
-            compression: self.compression,
-
-            reader: self.reader,
-            writer: self.writer,
         }
     }
 
