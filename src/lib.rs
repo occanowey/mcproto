@@ -6,7 +6,6 @@ pub mod handshake;
 pub mod packet;
 pub mod state;
 pub mod types;
-mod varint;
 pub mod versions;
 
 pub mod net;

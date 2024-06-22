@@ -12,6 +12,9 @@ pub enum Error {
     #[error("read error: {0}")]
     ReadError(#[from] ReadError),
 
+    #[error("stream shutdown")]
+    StreamShutdown,
+
     #[error("connection unexpectedly closed: {:?}", .0.kind())]
     UnexpectedDisconect(io::Error),
 

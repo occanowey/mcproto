@@ -2,9 +2,8 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
-use bytes::{BufMut, Bytes, BytesMut};
-use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use flate2::write::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;
 use tracing::{debug, trace};
 
@@ -14,7 +13,7 @@ use crate::handshake;
 use crate::net::side::NetworkSide;
 use crate::state::{NetworkState, NextHandlerState, SidedStateReadPacket, SidedStateWritePacket};
 use crate::types::proxy::i32_as_v32;
-use crate::varint::VarintReadExt;
+use crate::types::ReadError;
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<Side: NetworkSide>(
@@ -24,6 +23,7 @@ pub fn handler_from_stream<Side: NetworkSide>(
     let writer = EncryptableWriter::wrap(stream.try_clone()?);
 
     Ok(NetworkHandler {
+        recv_buffer: BytesMut::new(),
         stream,
         _side: PhantomData,
         _state: PhantomData,
@@ -36,6 +36,7 @@ pub fn handler_from_stream<Side: NetworkSide>(
 }
 
 pub struct NetworkHandler<Side: NetworkSide, State: NetworkState> {
+    recv_buffer: BytesMut,
     stream: TcpStream,
     _side: PhantomData<Side>,
     _state: PhantomData<State>,
@@ -47,6 +48,28 @@ pub struct NetworkHandler<Side: NetworkSide, State: NetworkState> {
 }
 
 impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
+    fn ensure_next_length(&mut self) -> Result<()> {
+        loop {
+            match i32_as_v32::buf_read(&mut self.recv_buffer.clone()) {
+                Ok(length) => {
+                    if self.recv_buffer.remaining() >= length as _ {
+                        return Ok(());
+                    }
+                }
+                Err(ReadError::ReadOutOfBounds(..)) => (),
+                Err(other) => Err(other)?,
+            };
+
+            let mut buf = [0; 512];
+            // TODO: timeout
+            let len = self.reader.read(&mut buf)?;
+            if len == 0 {
+                return Err(Error::StreamShutdown);
+            }
+            self.recv_buffer.extend_from_slice(&buf[0..len]);
+        }
+    }
+
     pub fn read<Packet: SidedStateReadPacket<Side, State> + std::fmt::Debug>(
         &mut self,
     ) -> Result<Packet> {
@@ -61,35 +84,33 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
     }
 
     pub fn read_id_body(&mut self) -> Result<(i32, Bytes)> {
-        let (length, _) = self.reader.read_varint()?;
+        self.ensure_next_length()?;
+        let length = i32_as_v32::buf_read(&mut self.recv_buffer)? as usize;
 
-        // allocate and read first length (packet length or compressed length)
-        let mut buffer = vec![0; length as usize];
-        self.reader.read_exact(&mut buffer)?;
+        // compression
+        let mut body = if self.compression.is_some() {
+            let (body_length, body_length_length) =
+                i32_as_v32::buf_read_len(&mut self.recv_buffer).unwrap();
 
-        let mut buffer = if self.compression.is_some() {
-            let (data_length, dl_len) = buffer.as_slice().read_varint()?;
-            buffer.drain(0..dl_len);
-
-            if data_length > 0 {
-                let mut decoder = ZlibDecoder::new(buffer.as_slice());
-
-                let mut buffer = vec![0; data_length as usize];
-                decoder.read_exact(&mut buffer)?;
-
-                buffer
+            let compressed_body = self.recv_buffer.split_to(length - body_length_length);
+            if body_length > 0 {
+                let body = BytesMut::with_capacity(body_length as _);
+                let mut decoder = ZlibDecoder::new(body.writer());
+                // TODO: check unwrap safety
+                decoder.write_all(&compressed_body).unwrap();
+                decoder.finish().unwrap().into_inner()
             } else {
-                buffer
+                compressed_body
             }
         } else {
-            buffer
+            self.recv_buffer.split_to(length)
         };
 
-        let (id, id_len) = buffer.as_slice().read_varint()?;
-        buffer.drain(0..id_len);
+        let id = i32_as_v32::buf_read(&mut body).unwrap();
+        let body = body.freeze();
 
-        trace!(id, ?buffer, "read raw packet");
-        Ok((id, Bytes::from(buffer)))
+        trace!(id, ?body, "read id body");
+        Ok((id, body))
     }
 
     pub fn write<Packet: SidedStateWritePacket<Side, State> + std::fmt::Debug>(
@@ -150,6 +171,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         debug!(state = ?State::LABEL, "switching to {:?}", NextState::LABEL);
 
         NetworkHandler {
+            recv_buffer: self.recv_buffer,
             stream: self.stream,
             _side: PhantomData,
             _state: PhantomData,
