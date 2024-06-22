@@ -12,37 +12,37 @@ use tracing::{debug, trace};
 
 use crate::error::{Error, Result};
 use crate::handshake;
-use crate::side::NetworkSide;
-use crate::state::{NetworkState, NextHandlerState, SidedStateReadPacket, SidedStateWritePacket};
+use crate::role::ConnectionRole;
+use crate::state::{NextProtocolState, ProtocolState, RoleStateReadPacket, RoleStateWritePacket};
 use crate::types::proxy::i32_as_v32;
 use crate::types::ReadError;
 
-// would rather this be in network handler but generics makes that difficult if not impossible
-pub fn handler_from_stream<Side: NetworkSide>(
+// would rather this be in connection but generics makes that difficult if not impossible
+pub fn connection_from_stream<Role: ConnectionRole>(
     stream: TcpStream,
-) -> Result<NetworkHandler<Side, handshake::HandshakingState>> {
-    Ok(NetworkHandler {
+) -> Result<Connection<Role, handshake::HandshakingState>> {
+    Ok(Connection {
         stream,
         recv_buffer: BytesMut::new(),
         ciphers: None,
         compression_threshold: None,
 
-        _side: PhantomData,
+        _role: PhantomData,
         _state: PhantomData,
     })
 }
 
-pub struct NetworkHandler<Side: NetworkSide, State: NetworkState> {
+pub struct Connection<Role: ConnectionRole, State: ProtocolState> {
     stream: TcpStream,
     recv_buffer: BytesMut,
     ciphers: Option<(cfb8::Encryptor<aes::Aes128>, cfb8::Decryptor<aes::Aes128>)>,
     compression_threshold: Option<usize>,
 
-    _side: PhantomData<Side>,
+    _role: PhantomData<Role>,
     _state: PhantomData<State>,
 }
 
-impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
+impl<Role: ConnectionRole, State: ProtocolState> Connection<Role, State> {
     fn ensure_next_length(&mut self) -> Result<()> {
         loop {
             match i32_as_v32::buf_read(&mut self.recv_buffer.clone()) {
@@ -78,7 +78,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         }
     }
 
-    pub fn read<Packet: SidedStateReadPacket<Side, State> + std::fmt::Debug>(
+    pub fn read<Packet: RoleStateReadPacket<Role, State> + std::fmt::Debug>(
         &mut self,
     ) -> Result<Packet> {
         let (id, mut data) = self.read_id_body()?;
@@ -121,7 +121,7 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         Ok((id, body))
     }
 
-    pub fn write<Packet: SidedStateWritePacket<Side, State> + std::fmt::Debug>(
+    pub fn write<Packet: RoleStateWritePacket<Role, State> + std::fmt::Debug>(
         &mut self,
         packet: Packet,
     ) -> Result<()> {
@@ -191,16 +191,16 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
         self.ciphers.replace((encryption_cipher, decryption_cipher));
     }
 
-    pub fn next_state<NextState: NextHandlerState<State>>(self) -> NetworkHandler<Side, NextState> {
+    pub fn next_state<NextState: NextProtocolState<State>>(self) -> Connection<Role, NextState> {
         debug!(state = ?State::LABEL, "switching to {:?}", NextState::LABEL);
 
-        NetworkHandler {
+        Connection {
             stream: self.stream,
             recv_buffer: self.recv_buffer,
             ciphers: self.ciphers,
             compression_threshold: self.compression_threshold,
 
-            _side: PhantomData,
+            _role: PhantomData,
             _state: PhantomData,
         }
     }

@@ -6,7 +6,7 @@ use std::{
 };
 
 use mcproto::{
-    handler::handler_from_stream,
+    connection::connection_from_stream,
     handshake::{Handshake, NextState},
     versions::latest::{
         packets::status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
@@ -24,9 +24,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let server = TcpStream::connect(address)?;
-    let mut handler = handler_from_stream(server)?;
+    let mut connection = connection_from_stream(server)?;
 
-    handler.write(Handshake {
+    connection.write(Handshake {
         protocol_version: 110,
         server_address: "localhost".into(),
         server_port: 25565,
@@ -34,15 +34,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         forge: None,
     })?;
 
-    let mut handler = handler.next_state::<states::StatusState>();
+    let mut connection = connection.next_state::<states::StatusState>();
 
-    handler.write(StatusRequest)?;
-    let response: StatusResponse = handler.read()?;
+    connection.write(StatusRequest)?;
+    let response: StatusResponse = connection.read()?;
 
     let now = Instant::now();
 
-    handler.write(PingRequest { payload: 1 })?;
-    let pong: PingResponse = handler.read()?;
+    connection.write(PingRequest { payload: 1 })?;
+    let pong: PingResponse = connection.read()?;
 
     let duration = now.elapsed().as_millis();
 

@@ -1,18 +1,18 @@
 pub use uuid;
 
-pub mod side {
-    pub trait NetworkSide {}
+pub mod role {
+    pub trait ConnectionRole {}
 
     pub struct Server;
-    impl NetworkSide for Server {}
+    impl ConnectionRole for Server {}
 
     pub struct Client;
-    impl NetworkSide for Client {}
+    impl ConnectionRole for Client {}
 }
 
 pub mod error;
 
-pub mod handler;
+pub mod connection;
 pub mod handshake;
 pub mod packet;
 pub mod state;

@@ -8,8 +8,8 @@ use super::packets::{configuration, login, play, status};
 //
 // Handshaking State
 //
-impl state::NextHandlerState<handshake::HandshakingState> for StatusState {}
-impl state::NextHandlerState<handshake::HandshakingState> for LoginState {}
+impl state::NextProtocolState<handshake::HandshakingState> for StatusState {}
+impl state::NextProtocolState<handshake::HandshakingState> for LoginState {}
 
 //
 // Status State
