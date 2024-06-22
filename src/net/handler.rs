@@ -9,16 +9,14 @@ use tracing::{debug, trace};
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
 use crate::error::{Error, Result};
 use crate::net::side::NetworkSide;
-use crate::net::state::{
-    ConfigurationState, HandshakingState, LoginState, NetworkState, PlayState,
-    SidedStateReadPacket, SidedStateWritePacket, StatusState,
-};
+use crate::net::state::{NetworkState, SidedStateReadPacket, SidedStateWritePacket};
+use crate::versions::latest::states;
 use crate::{varint::VarintReadExt, PacketBuilder};
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<D: NetworkSide>(
     stream: TcpStream,
-) -> Result<NetworkHandler<D, HandshakingState>> {
+) -> Result<NetworkHandler<D, states::HandshakingState>> {
     let reader = EncryptableBufReader::wrap(stream.try_clone()?);
     let writer = EncryptableWriter::wrap(stream.try_clone()?);
 
@@ -142,28 +140,28 @@ macro_rules! same_fields_different_generics {
     };
 }
 
-impl<D: NetworkSide> NetworkHandler<D, HandshakingState> {
-    pub fn status(self) -> NetworkHandler<D, StatusState> {
-        debug!(state = ?HandshakingState::LABEL, "switching to status state");
+impl<D: NetworkSide> NetworkHandler<D, states::HandshakingState> {
+    pub fn status(self) -> NetworkHandler<D, states::StatusState> {
+        debug!(state = ?states::HandshakingState::LABEL, "switching to status state");
         same_fields_different_generics!(self)
     }
 
-    pub fn login(self) -> NetworkHandler<D, LoginState> {
-        debug!(state = ?HandshakingState::LABEL, "switching to login state");
-        same_fields_different_generics!(self)
-    }
-}
-
-impl<D: NetworkSide> NetworkHandler<D, LoginState> {
-    pub fn configuration(self) -> NetworkHandler<D, ConfigurationState> {
-        debug!(state = ?LoginState::LABEL, "switching to configuration state");
+    pub fn login(self) -> NetworkHandler<D, states::LoginState> {
+        debug!(state = ?states::HandshakingState::LABEL, "switching to login state");
         same_fields_different_generics!(self)
     }
 }
 
-impl<D: NetworkSide> NetworkHandler<D, ConfigurationState> {
-    pub fn play(self) -> NetworkHandler<D, PlayState> {
-        debug!(state = ?ConfigurationState::LABEL, "switching to play state");
+impl<D: NetworkSide> NetworkHandler<D, states::LoginState> {
+    pub fn configuration(self) -> NetworkHandler<D, states::ConfigurationState> {
+        debug!(state = ?states::LoginState::LABEL, "switching to configuration state");
+        same_fields_different_generics!(self)
+    }
+}
+
+impl<D: NetworkSide> NetworkHandler<D, states::ConfigurationState> {
+    pub fn play(self) -> NetworkHandler<D, states::PlayState> {
+        debug!(state = ?states::ConfigurationState::LABEL, "switching to play state");
         same_fields_different_generics!(self)
     }
 }

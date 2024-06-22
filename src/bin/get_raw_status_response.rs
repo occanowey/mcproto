@@ -7,7 +7,7 @@ use std::{
 
 use mcproto::{
     net::handler_from_stream,
-    versions::v758::{
+    versions::v758::packets::{
         handshaking::{Handshake, NextState},
         status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
     },
