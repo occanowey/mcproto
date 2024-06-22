@@ -26,13 +26,13 @@ macro_rules! impl_packets_enum {
         pub enum Packets {
             $($packet($packet),)*
 
-            Unknown(i32)
+            Unknown(i32, bytes::Bytes)
         }
 
         #[automatically_derived]
         impl Packets {
             pub fn is_known(&self) -> bool {
-                !matches!(self, Self::Unknown(_))
+                !matches!(self, Self::Unknown(_, _))
             }
         }
 
@@ -42,10 +42,23 @@ macro_rules! impl_packets_enum {
                 match id {
                     $(<$packet as crate::packet::Packet>::PACKET_ID => <$packet as crate::packet::PacketRead>::read_body(&mut body).map(Self::$packet),)*
 
-                    other => Ok(Self::Unknown(other)),
+                    other => Ok(Self::Unknown(other, body)),
                 }
             }
         }
+
+        $(
+            impl std::convert::TryFrom<Packets> for $packet {
+                type Error = crate::error::Error;
+
+                fn try_from(value: Packets) -> Result<Self, Self::Error> {
+                    match value {
+                        Packets::$packet(packet) => Ok(packet),
+                        _ => Err(crate::error::Error::IncorectPacket),
+                    }
+                }
+            }
+        )*
     };
 }
 

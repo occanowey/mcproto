@@ -18,3 +18,5 @@ pub mod packet;
 pub mod state;
 pub mod types;
 pub mod versions;
+
+pub mod sio;

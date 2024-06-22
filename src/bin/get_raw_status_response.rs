@@ -1,13 +1,9 @@
-use std::{
-    env,
-    error::Error,
-    net::{TcpStream, ToSocketAddrs},
-    time::Instant,
-};
+use std::{env, error::Error, net::ToSocketAddrs, time::Instant};
 
 use mcproto::{
-    connection::connection_from_stream,
     handshake::{Handshake, NextState},
+    role,
+    sio::{self, StdIoConnection},
     versions::latest::{
         packets::status::{
             c2s::{PingRequest, StatusRequest},
@@ -26,10 +22,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .next()
         .unwrap();
 
-    let server = TcpStream::connect(address)?;
-    let mut connection = connection_from_stream(server)?;
+    let mut connection: StdIoConnection<role::Client, _> = sio::connect_stdio_stream(address)?;
 
-    connection.write(Handshake {
+    connection.write_packet(Handshake {
         protocol_version: 110,
         server_address: "localhost".into(),
         server_port: 25565,
@@ -39,13 +34,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut connection = connection.next_state::<states::StatusState>();
 
-    connection.write(StatusRequest)?;
-    let response: StatusResponse = connection.read_expected()?;
+    connection.write_packet(StatusRequest)?;
+    let response: StatusResponse = connection.expect_next_packet()?;
 
     let now = Instant::now();
 
-    connection.write(PingRequest { payload: 1 })?;
-    let pong: PingResponse = connection.read_expected()?;
+    connection.write_packet(PingRequest { payload: 1 })?;
+    let pong: PingResponse = connection.expect_next_packet()?;
 
     let duration = now.elapsed().as_millis();
 
