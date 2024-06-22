@@ -7,11 +7,10 @@ use flate2::read::ZlibDecoder;
 use tracing::{debug, trace};
 
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
-use super::state::NextHandlerState;
 use crate::error::{Error, Result};
 use crate::handshake;
 use crate::net::side::NetworkSide;
-use crate::net::state::{NetworkState, SidedStateReadPacket, SidedStateWritePacket};
+use crate::state::{NetworkState, NextHandlerState, SidedStateReadPacket, SidedStateWritePacket};
 use crate::{varint::VarintReadExt, PacketBuilder};
 
 // would rather this be in network handler but generics makes that difficult if not impossible

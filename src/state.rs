@@ -19,13 +19,13 @@ pub(crate) use self::sealed::*;
 
 macro_rules! impl_sided_state_packet {
     (c2s, $state: ty, $packet: ty) => {
-        impl crate::net::state::SidedStateReadPacket<crate::net::side::Server, $state> for $packet {}
-        impl crate::net::state::SidedStateWritePacket<crate::net::side::Client, $state> for $packet {}
+        impl crate::state::SidedStateReadPacket<crate::net::side::Server, $state> for $packet {}
+        impl crate::state::SidedStateWritePacket<crate::net::side::Client, $state> for $packet {}
     };
 
     (s2c, $state: ty, $packet: ty) => {
-        impl crate::net::state::SidedStateWritePacket<crate::net::side::Server, $state> for $packet {}
-        impl crate::net::state::SidedStateReadPacket<crate::net::side::Client, $state> for $packet {}
+        impl crate::state::SidedStateWritePacket<crate::net::side::Server, $state> for $packet {}
+        impl crate::state::SidedStateReadPacket<crate::net::side::Client, $state> for $packet {}
     };
 }
 
@@ -34,13 +34,13 @@ pub(crate) use impl_sided_state_packet;
 macro_rules! impl_state {
     ($state: ident ($label: expr), [$($next_state: ty), *] $(, $($side: tt [$($packet: ty),* $(,)?]),*)? $(,)?) => {
         pub struct $state;
-        impl crate::net::state::NetworkState for $state {
+        impl crate::state::NetworkState for $state {
             const LABEL: &'static str = $label;
         }
 
-        $(impl crate::net::state::NextHandlerState<$state> for $next_state {})*
+        $(impl crate::state::NextHandlerState<$state> for $next_state {})*
 
-        $($($(crate::net::state::impl_sided_state_packet!($side, $state, $packet);)*)*)?
+        $($($(crate::state::impl_sided_state_packet!($side, $state, $packet);)*)*)?
     };
 }
 

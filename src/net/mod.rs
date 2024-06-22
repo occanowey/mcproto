@@ -8,8 +8,6 @@ pub mod side {
     impl NetworkSide for Client {}
 }
 
-pub mod state;
-
 mod encryption;
 mod handler;
 

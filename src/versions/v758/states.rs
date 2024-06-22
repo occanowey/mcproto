@@ -1,6 +1,6 @@
 use crate::{
     handshake,
-    net::state::{self, impl_state},
+    state::{self, impl_state},
 };
 
 use super::packets::{configuration, login, play, status};

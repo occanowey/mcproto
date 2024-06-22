@@ -1,5 +1,5 @@
-use crate::net::state::impl_state;
 use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::state::impl_state;
 use crate::types::{proxy::i32_as_v32, v32_prefix_enum, BufType, ReadError};
 use bytes::{Buf, BufMut};
 use packet_derive::Packet;
