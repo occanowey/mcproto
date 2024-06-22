@@ -1,42 +1,39 @@
-use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
-use packet_derive::{Packet, PacketRead, PacketWrite};
-
 //
 // Clientbound
 //
+pub mod s2c {
+    use crate::packet::prelude::*;
 
-impl_packet_enum!(s2c {
-    0x00 => StatusResponse,
-    0x01 => PingResponse,
-});
+    impl_packets_enum![StatusResponse, PingResponse];
 
-#[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[packet(id = 0x00)]
-pub struct StatusResponse {
-    pub response: String,
-}
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x00)]
+    pub struct StatusResponse {
+        pub response: String,
+    }
 
-#[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[packet(id = 0x01)]
-pub struct PingResponse {
-    pub payload: i64,
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x01)]
+    pub struct PingResponse {
+        pub payload: i64,
+    }
 }
 
 //
 // Serverbound
 //
+pub mod c2s {
+    use crate::packet::prelude::*;
 
-impl_packet_enum!(c2s {
-    0x00 => StatusRequest,
-    0x01 => PingRequest,
-});
+    impl_packets_enum![StatusRequest, PingRequest];
 
-#[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[packet(id = 0x00)]
-pub struct StatusRequest;
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x00)]
+    pub struct StatusRequest;
 
-#[derive(Debug, Packet, PacketRead, PacketWrite)]
-#[packet(id = 0x01)]
-pub struct PingRequest {
-    pub payload: i64,
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x01)]
+    pub struct PingRequest {
+        pub payload: i64,
+    }
 }

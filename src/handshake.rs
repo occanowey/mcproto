@@ -1,16 +1,7 @@
-use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::packet::prelude::*;
 use crate::state::impl_state;
-use crate::types::{proxy::i32_as_v32, v32_prefix_enum, BufType, ReadError};
-use bytes::{Buf, BufMut};
-use packet_derive::Packet;
 
-//
-// Serverbound
-//
-
-impl_packet_enum!(c2s {
-    0x00 => Handshake
-});
+impl_packets_enum![Handshake];
 
 // i hate it here
 // https://wiki.vg/Minecraft_Forge_Handshake

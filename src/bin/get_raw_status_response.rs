@@ -9,7 +9,10 @@ use mcproto::{
     connection::connection_from_stream,
     handshake::{Handshake, NextState},
     versions::latest::{
-        packets::status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
+        packets::status::{
+            c2s::{PingRequest, StatusRequest},
+            s2c::{PingResponse, StatusResponse},
+        },
         states,
     },
 };
