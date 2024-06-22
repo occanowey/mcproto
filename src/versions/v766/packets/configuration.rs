@@ -1,3 +1,5 @@
+use super::super::super::v765::packets::configuration as prev;
+
 //
 // Clientbound
 //
@@ -151,36 +153,7 @@ pub mod s2c {
         pub tags: HashMap<Identifier, Vec<update_tags::Tag>>,
     }
 
-    pub mod update_tags {
-        use crate::types::ReadError;
-        use crate::types::{proxy::length_prefix_array, v32, BufType, Identifier};
-
-        #[derive(Debug)]
-        pub struct Tag {
-            pub name: Identifier,
-            pub entries: Vec<i32>,
-        }
-
-        impl BufType for Tag {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (name, name_size) = Identifier::buf_read_len(buf)?;
-                let (entries, entries_size): (Vec<v32>, _) =
-                    length_prefix_array::buf_read_len(buf)?;
-
-                let tag = Tag {
-                    name,
-                    entries: entries.into_iter().map(|i| i.0).collect(), // :/
-                };
-                Ok((tag, name_size + entries_size))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.name.buf_write(buf);
-                let entries = self.entries.iter().map(|i| v32(*i)).collect::<Vec<_>>(); // still :/
-                length_prefix_array::buf_write(&entries, buf)
-            }
-        }
-    }
+    pub use super::prev::s2c::update_tags;
 
     impl PacketRead for UpdateTags {
         fn read_body<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
@@ -270,99 +243,8 @@ pub mod c2s {
         ServerboundKnownPacks,
     ];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x00)]
-    pub struct ClientInformation {
-        pub locale: String,
-        pub view_distance: i8,
-        pub chat_mode: client_information::ChatMode,
-        pub chat_colors: bool,
-        pub displayed_skin_parts: client_information::DisplayedSkinParts,
-        pub main_hand: client_information::MainHand,
-        pub enable_text_filtering: bool,
-        pub allow_server_listings: bool,
-    }
-
-    pub mod client_information {
-        use crate::types::{v32_prefix_enum, BufType, ReadError};
-
-        #[derive(Debug)]
-        pub enum ChatMode {
-            Enabled,
-            CommandsOnly,
-            Hidden,
-
-            Unknown(i32),
-        }
-
-        v32_prefix_enum!(
-            ChatMode => Unknown
-            {
-                Enabled = 0,
-                CommandsOnly = 1,
-                Hidden = 2,
-            }
-        );
-
-        #[derive(Debug)]
-        pub struct DisplayedSkinParts {
-            pub cape_enabled: bool,
-            pub jacket_enabled: bool,
-            pub left_sleeve_enabled: bool,
-            pub right_sleeve_enabled: bool,
-            pub left_pants_leg_enabled: bool,
-            pub right_pants_leg_enabled: bool,
-            pub hat_enabled: bool,
-        }
-
-        impl BufType for DisplayedSkinParts {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (mask, size) = u8::buf_read_len(buf)?;
-
-                #[rustfmt::skip]
-                let displayed_skin_parts = DisplayedSkinParts {
-                               cape_enabled: mask & 0b0000001 > 0,
-                             jacket_enabled: mask & 0b0000010 > 0,
-                        left_sleeve_enabled: mask & 0b0000100 > 0,
-                       right_sleeve_enabled: mask & 0b0001000 > 0,
-                     left_pants_leg_enabled: mask & 0b0010000 > 0,
-                    right_pants_leg_enabled: mask & 0b0100000 > 0,
-                                hat_enabled: mask & 0b1000000 > 0,
-                };
-
-                Ok((displayed_skin_parts, size))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                #[rustfmt::skip]
-                #[allow(clippy::identity_op)]
-                let mask = (self.           cape_enabled as u8) << 0
-                             & (self.         jacket_enabled as u8) << 1
-                             & (self.    left_sleeve_enabled as u8) << 2
-                             & (self.   right_sleeve_enabled as u8) << 3
-                             & (self. left_pants_leg_enabled as u8) << 4
-                             & (self.right_pants_leg_enabled as u8) << 5
-                             & (self.            hat_enabled as u8) << 6;
-
-                mask.buf_write(buf);
-            }
-        }
-
-        #[derive(Debug)]
-        pub enum MainHand {
-            Left,
-            Right,
-            Unknown(i32),
-        }
-
-        v32_prefix_enum!(
-            MainHand => Unknown
-            {
-                Left = 0,
-                Right = 1,
-            }
-        );
-    }
+    // 0x00
+    pub use super::prev::c2s::{client_information, ClientInformation};
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x01)]

@@ -70,7 +70,7 @@ pub(crate) mod prelude {
     pub use crate::types::{
         proxy::{
             i32_as_v32, length_prefix_array, length_prefix_bytes, option_length_prefix_bytes,
-            remaining_bytes,
+            remaining_bytes, u16_length_prefix_bytes,
         },
         BufType, Identifier, ReadError,
     };

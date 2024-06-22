@@ -44,6 +44,31 @@ pub mod length_prefix_bytes {
     }
 }
 
+pub mod u16_length_prefix_bytes {
+    use super::*;
+
+    pub fn buf_read<B: Buf>(buf: &mut B) -> Result<Vec<u8>> {
+        self::buf_read_len(buf).map(|value| value.0)
+    }
+
+    pub fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Vec<u8>, usize)> {
+        let (buf_len, buf_len_len) = u16::buf_read_len(buf)?;
+        ensure_remaining(buf, buf_len as _)?;
+
+        let mut bytes = vec![0; buf_len as _];
+        buf.copy_to_slice(&mut bytes);
+
+        Ok((bytes, buf_len as usize + buf_len_len))
+    }
+
+    pub fn buf_write<B: BufMut, BA: AsRef<[u8]>>(bytes: BA, buf: &mut B) {
+        let bytes = bytes.as_ref();
+
+        u16::buf_write(&(bytes.len() as _), buf);
+        buf.put_slice(bytes);
+    }
+}
+
 pub mod length_prefix_array {
     use super::*;
 

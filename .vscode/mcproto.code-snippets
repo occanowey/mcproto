@@ -1,0 +1,11 @@
+{
+	"New Packet": {
+		"scope": "rust",
+		"prefix": "npacket",
+		"body": [
+			"#[derive(Debug, Clone, Packet, ${1:PacketRead}, ${2:PacketWrite})]",
+			"#[packet(id = 0x$3)]",
+			"pub struct $4",
+		]
+	}
+}
