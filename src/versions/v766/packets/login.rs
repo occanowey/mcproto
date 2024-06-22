@@ -1,3 +1,5 @@
+use super::super::super::v765::packets::login as prev;
+
 //
 // Clientbound
 //
@@ -14,12 +16,8 @@ pub mod s2c {
         CookieRequest,
     ];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x00)]
-    pub struct Disconnect {
-        // Text Component (JSON)
-        pub reason: String,
-    }
+    // 0x00
+    pub use super::prev::s2c::Disconnect;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x01)]
@@ -42,55 +40,13 @@ pub mod s2c {
         pub strict_error_handling: bool,
     }
 
-    mod login_success {
-        use crate::types::BufType;
-        use crate::types::ReadError;
+    pub use super::prev::s2c::login_success;
 
-        #[derive(Debug)]
-        pub struct Property {
-            pub name: String,
-            pub value: String,
-            pub signature: Option<String>,
-        }
+    // 0x03
+    pub use super::prev::s2c::SetCompression;
 
-        impl BufType for Property {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (name, name_len) = String::buf_read_len(buf)?;
-                let (value, value_len) = String::buf_read_len(buf)?;
-                let (signature, signature_len) = Option::buf_read_len(buf)?;
-
-                let property = Property {
-                    name,
-                    value,
-                    signature,
-                };
-
-                Ok((property, name_len + value_len + signature_len))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.name.buf_write(buf);
-                self.value.buf_write(buf);
-                self.signature.buf_write(buf);
-            }
-        }
-    }
-
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x03)]
-    pub struct SetCompression {
-        #[packet(with = "i32_as_v32")]
-        pub threshold: i32,
-    }
-
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x04)]
-    pub struct LoginPluginRequest {
-        pub message_id: i32,
-        pub channel: Identifier,
-        #[packet(with = "remaining_bytes")]
-        pub data: Vec<u8>,
-    }
+    // 0x04
+    pub use super::prev::s2c::LoginPluginRequest;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x05)]
@@ -114,35 +70,17 @@ pub mod c2s {
         CookieResponse,
     ];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x00)]
-    pub struct LoginStart {
-        pub username: String,
-        pub uuid: Uuid,
-    }
+    // 0x00
+    pub use super::prev::c2s::LoginStart;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x01)]
-    pub struct EncryptionResponse {
-        #[packet(with = "length_prefix_bytes")]
-        pub shared_secret: Vec<u8>,
-        #[packet(with = "length_prefix_bytes")]
-        pub verify_token: Vec<u8>,
-    }
+    // 0x01
+    pub use super::prev::c2s::EncryptionResponse;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x02)]
-    pub struct LoginPluginResponse {
-        #[packet(with = "i32_as_v32")]
-        pub message_id: i32,
-        pub successful: bool,
-        #[packet(with = "remaining_bytes")]
-        pub data: Vec<u8>,
-    }
+    // 0x02
+    pub use super::prev::c2s::LoginPluginResponse;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x03)]
-    pub struct LoginAcknowledged;
+    // 0x03
+    pub use super::prev::c2s::LoginAcknowledged;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x04)]

@@ -3,7 +3,7 @@ use crate::{
     state::{self, impl_state},
 };
 
-use super::packets::{configuration, login, play, status};
+use super::packets::{configuration, login, status};
 
 //
 // Handshaking State
@@ -48,7 +48,6 @@ impl_state!(
         login::c2s::EncryptionResponse,
         login::c2s::LoginPluginResponse,
         login::c2s::LoginAcknowledged,
-        login::c2s::CookieResponse,
     ],
 );
 
@@ -65,7 +64,7 @@ impl state::RoleStatePackets<role::Server> for LoginState {
 //
 impl_state!(
     ConfigurationState("configuration"),
-    [PlayState],
+    [],
     s2c[
         configuration::s2c::CookieRequest,
         configuration::s2c::ClientboundPluginMessage,
@@ -101,17 +100,4 @@ impl state::RoleStatePackets<role::Client> for ConfigurationState {
 
 impl state::RoleStatePackets<role::Server> for ConfigurationState {
     type RecvPacket = configuration::c2s::Packets;
-}
-
-//
-// Play State
-//
-impl_state!(PlayState("play"), [], s2c[play::s2c::Disconnect]);
-
-impl state::RoleStatePackets<role::Client> for PlayState {
-    type RecvPacket = play::s2c::Packets;
-}
-
-impl state::RoleStatePackets<role::Server> for PlayState {
-    type RecvPacket = play::c2s::Packets;
 }

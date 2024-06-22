@@ -1,0 +1,9 @@
+prev := `grep latest mod.rs | grep -Eo '[0-9]+'`
+
+nextver NEXT:
+    cp -r next v{{NEXT}}
+    grep -rl __PREV__ v{{NEXT}} | xargs sed -i 's/__PREV__/{{prev}}/g'
+    grep -rl __NEXT__ v{{NEXT}} | xargs sed -i 's/__NEXT__/{{NEXT}}/g'
+
+updatenextstates:
+    cp v{{prev}}/states.rs next/states.rs
