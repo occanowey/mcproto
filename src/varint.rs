@@ -1,7 +1,6 @@
-use std::io::{Read, Result, Write};
+use std::io::{Read, Result};
 
 impl<R: Read + ?Sized> VarintReadExt for R {}
-impl<W: Write + ?Sized> VarintWriteExt for W {}
 
 pub trait VarintReadExt: Read {
     #[inline]
@@ -32,26 +31,5 @@ pub trait VarintReadExt: Read {
         }
 
         Ok((acc, i))
-    }
-}
-
-pub trait VarintWriteExt: Write {
-    fn write_ubyte(&mut self, value: u8) -> Result<()> {
-        self.write_all(&value.to_be_bytes())
-    }
-
-    fn write_varint(&mut self, value: i32) -> Result<()> {
-        let mut input = value as u32;
-
-        loop {
-            if (input & 0xFFFFFF80) == 0 {
-                break;
-            }
-
-            self.write_ubyte((input & 0x7F | 0x80) as u8)?;
-            input >>= 7;
-        }
-
-        self.write_ubyte((input & 0xFF) as u8)
     }
 }

@@ -101,7 +101,7 @@ pub fn packet_read(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketRead for #ident #ty #r#where {
-            fn read_data<__B: ::bytes::Buf>(__buf: &mut __B) -> std::result::Result<Self, crate::types::ReadError> {
+            fn read_body<__B: ::bytes::Buf>(__buf: &mut __B) -> std::result::Result<Self, crate::types::ReadError> {
                 #(#field_read_impls)*
                 Ok(#struct_create_impl)
             }
@@ -149,7 +149,7 @@ pub fn packet_write(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl PacketWrite for #ident #ty #r#where {
-            fn write_data<__B: bytes::BufMut>(&self, __buf: &mut __B) {
+            fn write_body<__B: bytes::BufMut>(&self, __buf: &mut __B) {
                 #(#field_write_impls)*
             }
         }

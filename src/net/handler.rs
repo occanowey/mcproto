@@ -1,9 +1,11 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::net::{Shutdown, TcpStream};
 
-use bytes::Bytes;
+use bytes::{BufMut, Bytes, BytesMut};
 use flate2::read::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use tracing::{debug, trace};
 
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
@@ -11,7 +13,8 @@ use crate::error::{Error, Result};
 use crate::handshake;
 use crate::net::side::NetworkSide;
 use crate::state::{NetworkState, NextHandlerState, SidedStateReadPacket, SidedStateWritePacket};
-use crate::{varint::VarintReadExt, PacketBuilder};
+use crate::types::proxy::i32_as_v32;
+use crate::varint::VarintReadExt;
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<Side: NetworkSide>(
@@ -47,17 +50,17 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
     pub fn read<Packet: SidedStateReadPacket<Side, State> + std::fmt::Debug>(
         &mut self,
     ) -> Result<Packet> {
-        let (id, mut data) = self.read_raw_data()?;
+        let (id, mut data) = self.read_id_body()?;
         if id != Packet::PACKET_ID {
             return Err(Error::IncorectPacketId(Packet::PACKET_ID, id));
         }
 
-        let packet = Packet::read_data(&mut data);
+        let packet = Packet::read_body(&mut data);
         debug!(state = ?State::LABEL, ?packet, "read packet");
         Ok(packet?)
     }
 
-    pub fn read_raw_data(&mut self) -> Result<(i32, Bytes)> {
+    pub fn read_id_body(&mut self) -> Result<(i32, Bytes)> {
         let (length, _) = self.reader.read_varint()?;
 
         // allocate and read first length (packet length or compressed length)
@@ -95,14 +98,39 @@ impl<Side: NetworkSide, State: NetworkState> NetworkHandler<Side, State> {
     ) -> Result<()> {
         debug!(state = ?State::LABEL, ?packet, compression = ?self.compression, "writing packet");
 
-        let mut builder = PacketBuilder::new(Packet::PACKET_ID)?;
-        packet.write_data(builder.buf_mut());
+        // id + body
+        let mut packet_data = BytesMut::new();
+        i32_as_v32::buf_write(&Packet::PACKET_ID, &mut packet_data);
+        packet.write_body(&mut packet_data);
 
-        if let Some(threshold) = self.compression {
-            Ok(builder.write_to_compressed(&mut self.writer, threshold)?)
+        // compression
+        let mut compressed_data = if let Some(threshold) = self.compression {
+            let mut data = BytesMut::new();
+
+            if packet_data.len() >= threshold {
+                i32_as_v32::buf_write(&(packet_data.len() as _), &mut data);
+
+                let mut encoder = ZlibEncoder::new(data.writer(), Compression::default());
+                // TODO: check unwrap safety
+                encoder.write_all(&packet_data).unwrap();
+                encoder.finish().unwrap().into_inner()
+            } else {
+                i32_as_v32::buf_write(&0, &mut data);
+                data.put(packet_data);
+                data
+            }
         } else {
-            Ok(builder.write_to(&mut self.writer)?)
-        }
+            packet_data
+        };
+
+        // length + data
+        let mut data = BytesMut::new();
+        i32_as_v32::buf_write(&(compressed_data.len() as _), &mut data);
+        data.put(&mut compressed_data);
+
+        // write
+        self.writer.write_all(&data)?;
+        Ok(())
     }
 
     pub fn set_compression_threshold<T: Into<Option<usize>>>(&mut self, threshold: T) {

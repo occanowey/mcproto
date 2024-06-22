@@ -86,7 +86,7 @@ pub struct AddResourcePack {
 }
 
 impl PacketRead for AddResourcePack {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
+    fn read_body<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
         let uuid = Uuid::buf_read(data)?;
         let url = String::buf_read(data)?;
         let hash = String::buf_read(data)?;
@@ -111,7 +111,7 @@ impl PacketRead for AddResourcePack {
 }
 
 impl PacketWrite for AddResourcePack {
-    fn write_data<B: BufMut>(&self, buf: &mut B) {
+    fn write_body<B: BufMut>(&self, buf: &mut B) {
         self.uuid.buf_write(buf);
         self.url.buf_write(buf);
         self.hash.buf_write(buf);
@@ -170,7 +170,7 @@ pub mod update_tags {
 }
 
 impl PacketRead for UpdateTags {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
+    fn read_body<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
         let mut tag_map = HashMap::new();
         let tags_count = i32_as_v32::buf_read(data)?;
         for _ in 0..tags_count {
@@ -185,7 +185,7 @@ impl PacketRead for UpdateTags {
 }
 
 impl PacketWrite for UpdateTags {
-    fn write_data<B: BufMut>(&self, buf: &mut B) {
+    fn write_body<B: BufMut>(&self, buf: &mut B) {
         let tag_map_count = self.tags.len();
         // TODO: return error rather than panic
         assert!(tag_map_count < (crate::types::v32::MAX as usize));

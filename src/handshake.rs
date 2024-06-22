@@ -88,7 +88,7 @@ impl Handshake {
 }
 
 impl PacketRead for Handshake {
-    fn read_data<B: Buf>(data: &mut B) -> Result<Handshake, ReadError> {
+    fn read_body<B: Buf>(data: &mut B) -> Result<Handshake, ReadError> {
         // todo: maybe handle legacy ping?
         let protocol_version = i32_as_v32::buf_read(data)?;
         let server_address = String::buf_read(data)?;
@@ -108,7 +108,7 @@ impl PacketRead for Handshake {
 }
 
 impl PacketWrite for Handshake {
-    fn write_data<B: BufMut>(&self, buf: &mut B) {
+    fn write_body<B: BufMut>(&self, buf: &mut B) {
         i32_as_v32::buf_write(&self.protocol_version, buf);
         self.modified_address().buf_write(buf);
         self.server_port.buf_write(buf);
