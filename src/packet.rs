@@ -1,6 +1,5 @@
 use crate::types::ReadError;
-
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, Bytes};
 
 pub trait Packet {
     const PACKET_ID: i32;
@@ -13,6 +12,12 @@ pub trait PacketRead: Packet + Sized {
 
 pub trait PacketWrite: Packet {
     fn write_body<B: BufMut>(&self, buf: &mut B);
+}
+
+pub trait PacketFromIdBody {
+    fn from_id_body(id: i32, body: Bytes) -> std::result::Result<Self, ReadError>
+    where
+        Self: Sized;
 }
 
 macro_rules! impl_packets_enum {
@@ -29,8 +34,11 @@ macro_rules! impl_packets_enum {
             pub fn is_known(&self) -> bool {
                 !matches!(self, Self::Unknown(_))
             }
+        }
 
-            pub fn from_id_body(id: i32, mut body: bytes::Bytes) -> std::result::Result<Self, crate::types::ReadError> {
+        #[automatically_derived]
+        impl crate::packet::PacketFromIdBody for Packets {
+            fn from_id_body(id: i32, mut body: bytes::Bytes) -> std::result::Result<Self, crate::types::ReadError> {
                 match id {
                     $(<$packet as crate::packet::Packet>::PACKET_ID => <$packet as crate::packet::PacketRead>::read_body(&mut body).map(Self::$packet),)*
 

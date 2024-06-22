@@ -6,6 +6,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("incorrect packet")]
+    IncorectPacket,
+
     #[error("incorect packet id: expected: {0}, recieved: {1}")]
     IncorectPacketId(i32, i32),
 

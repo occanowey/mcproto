@@ -40,12 +40,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut connection = connection.next_state::<states::StatusState>();
 
     connection.write(StatusRequest)?;
-    let response: StatusResponse = connection.read()?;
+    let response: StatusResponse = connection.read_expected()?;
 
     let now = Instant::now();
 
     connection.write(PingRequest { payload: 1 })?;
-    let pong: PingResponse = connection.read()?;
+    let pong: PingResponse = connection.read_expected()?;
 
     let duration = now.elapsed().as_millis();
 

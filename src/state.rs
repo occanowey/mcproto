@@ -9,6 +9,10 @@ pub trait ProtocolState {
 
 pub trait NextProtocolState<Current: ProtocolState>: ProtocolState {}
 
+pub trait RoleStatePackets<Role: ConnectionRole>: ProtocolState {
+    type RecvPacket;
+}
+
 pub trait RoleStateReadPacket<Role: ConnectionRole, State: ProtocolState>: PacketRead {}
 pub trait RoleStateWritePacket<Role: ConnectionRole, State: ProtocolState>: PacketWrite {}
 

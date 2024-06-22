@@ -11,11 +11,14 @@ use flate2::Compression;
 use tracing::{debug, trace};
 
 use crate::error::{Error, Result};
-use crate::handshake;
+use crate::packet::PacketFromIdBody;
 use crate::role::ConnectionRole;
-use crate::state::{NextProtocolState, ProtocolState, RoleStateReadPacket, RoleStateWritePacket};
+use crate::state::{
+    NextProtocolState, ProtocolState, RoleStatePackets, RoleStateReadPacket, RoleStateWritePacket,
+};
 use crate::types::proxy::i32_as_v32;
 use crate::types::ReadError;
+use crate::{handshake, packet};
 
 // would rather this be in connection but generics makes that difficult if not impossible
 pub fn connection_from_stream<Role: ConnectionRole>(
@@ -78,7 +81,7 @@ impl<Role: ConnectionRole, State: ProtocolState> Connection<Role, State> {
         }
     }
 
-    pub fn read<Packet: RoleStateReadPacket<Role, State> + std::fmt::Debug>(
+    pub fn read_expected<Packet: RoleStateReadPacket<Role, State> + std::fmt::Debug>(
         &mut self,
     ) -> Result<Packet> {
         let (id, mut data) = self.read_id_body()?;
@@ -211,5 +214,16 @@ impl<Role: ConnectionRole, State: ProtocolState> Connection<Role, State> {
 
     pub fn into_stream(self) -> TcpStream {
         self.stream
+    }
+}
+
+impl<Role: ConnectionRole, State: ProtocolState> Connection<Role, State>
+where
+    State: RoleStatePackets<Role>,
+    State::RecvPacket: packet::PacketFromIdBody,
+{
+    pub fn read(&mut self) -> Result<State::RecvPacket> {
+        let (id, body) = self.read_id_body()?;
+        Ok(State::RecvPacket::from_id_body(id, body)?)
     }
 }

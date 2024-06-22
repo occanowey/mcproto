@@ -1,5 +1,6 @@
 use crate::packet::prelude::*;
-use crate::state::impl_state;
+use crate::role;
+use crate::state::{self, impl_state};
 
 impl_packets_enum![Handshake];
 
@@ -108,3 +109,7 @@ impl PacketWrite for Handshake {
 }
 
 impl_state!(HandshakingState("handshaking"), [], c2s[Handshake]);
+
+impl state::RoleStatePackets<role::Server> for HandshakingState {
+    type RecvPacket = Packets;
+}

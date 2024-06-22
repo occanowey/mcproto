@@ -1,5 +1,5 @@
 use crate::{
-    handshake,
+    handshake, role,
     state::{self, impl_state},
 };
 
@@ -21,6 +21,14 @@ impl_state!(
     c2s[status::c2s::StatusRequest, status::c2s::PingRequest],
 );
 
+impl state::RoleStatePackets<role::Client> for StatusState {
+    type RecvPacket = status::s2c::Packets;
+}
+
+impl state::RoleStatePackets<role::Server> for StatusState {
+    type RecvPacket = status::c2s::Packets;
+}
+
 //
 // Login State
 //
@@ -41,6 +49,14 @@ impl_state!(
         login::c2s::LoginAcknowledged,
     ],
 );
+
+impl state::RoleStatePackets<role::Client> for LoginState {
+    type RecvPacket = login::s2c::Packets;
+}
+
+impl state::RoleStatePackets<role::Server> for LoginState {
+    type RecvPacket = login::c2s::Packets;
+}
 
 //
 // Configuration State
@@ -70,7 +86,23 @@ impl_state!(
     ],
 );
 
+impl state::RoleStatePackets<role::Client> for ConfigurationState {
+    type RecvPacket = configuration::s2c::Packets;
+}
+
+impl state::RoleStatePackets<role::Server> for ConfigurationState {
+    type RecvPacket = configuration::c2s::Packets;
+}
+
 //
 // Play State
 //
 impl_state!(PlayState("play"), [], s2c[play::s2c::Disconnect]);
+
+impl state::RoleStatePackets<role::Client> for PlayState {
+    type RecvPacket = play::s2c::Packets;
+}
+
+impl state::RoleStatePackets<role::Server> for PlayState {
+    type RecvPacket = play::c2s::Packets;
+}
