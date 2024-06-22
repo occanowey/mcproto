@@ -1,6 +1,7 @@
 //
 // Clientbound
 //
+
 pub mod s2c {
     use crate::packet::prelude::*;
 
@@ -10,6 +11,7 @@ pub mod s2c {
         LoginSuccess,
         SetCompression,
         LoginPluginRequest,
+        CookieRequest,
     ];
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -27,6 +29,7 @@ pub mod s2c {
         pub public_key: Vec<u8>,
         #[packet(with = "length_prefix_bytes")]
         pub verify_token: Vec<u8>,
+        pub should_authenticate: bool,
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -36,11 +39,12 @@ pub mod s2c {
         pub username: String,
         #[packet(with = "length_prefix_array")]
         pub properties: Vec<login_success::Property>,
+        pub strict_error_handling: bool,
     }
 
-    pub mod login_success {
+    mod login_success {
+        use crate::types::BufType;
         use crate::types::ReadError;
-        use crate::types::{proxy::bool_option, BufType};
 
         #[derive(Debug)]
         pub struct Property {
@@ -53,7 +57,7 @@ pub mod s2c {
             fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
                 let (name, name_len) = String::buf_read_len(buf)?;
                 let (value, value_len) = String::buf_read_len(buf)?;
-                let (signature, signature_len) = bool_option::buf_read_len(buf)?;
+                let (signature, signature_len) = Option::buf_read_len(buf)?;
 
                 let property = Property {
                     name,
@@ -67,7 +71,7 @@ pub mod s2c {
             fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
                 self.name.buf_write(buf);
                 self.value.buf_write(buf);
-                bool_option::buf_write(&self.signature, buf);
+                self.signature.buf_write(buf);
             }
         }
     }
@@ -87,11 +91,18 @@ pub mod s2c {
         #[packet(with = "remaining_bytes")]
         pub data: Vec<u8>,
     }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x05)]
+    pub struct CookieRequest {
+        pub key: Identifier,
+    }
 }
 
 //
 // Serverbound
 //
+
 pub mod c2s {
     use crate::packet::prelude::*;
 
@@ -100,6 +111,7 @@ pub mod c2s {
         EncryptionResponse,
         LoginPluginResponse,
         LoginAcknowledged,
+        CookieResponse,
     ];
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -121,6 +133,7 @@ pub mod c2s {
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x02)]
     pub struct LoginPluginResponse {
+        #[packet(with = "i32_as_v32")]
         pub message_id: i32,
         pub successful: bool,
         #[packet(with = "remaining_bytes")]
@@ -130,4 +143,12 @@ pub mod c2s {
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x03)]
     pub struct LoginAcknowledged;
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x04)]
+    pub struct CookieResponse {
+        pub key: Identifier,
+        #[packet(with = "option_length_prefix_bytes")]
+        pub payload: Option<Vec<u8>>,
+    }
 }

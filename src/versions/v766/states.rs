@@ -41,12 +41,14 @@ impl_state!(
         login::s2c::LoginSuccess,
         login::s2c::SetCompression,
         login::s2c::LoginPluginRequest,
+        login::s2c::CookieRequest,
     ],
     c2s[
         login::c2s::LoginStart,
         login::c2s::EncryptionResponse,
         login::c2s::LoginPluginResponse,
         login::c2s::LoginAcknowledged,
+        login::c2s::CookieResponse,
     ],
 );
 
@@ -65,24 +67,31 @@ impl_state!(
     ConfigurationState("configuration"),
     [PlayState],
     s2c[
+        configuration::s2c::CookieRequest,
         configuration::s2c::ClientboundPluginMessage,
         configuration::s2c::Disconnect,
         configuration::s2c::FinishConfiguration,
         configuration::s2c::ClientboundKeepAlive,
         configuration::s2c::Ping,
+        configuration::s2c::ResetChat,
         configuration::s2c::RegistryData,
         configuration::s2c::RemoveResourcePack,
         configuration::s2c::AddResourcePack,
+        configuration::s2c::StoreCookie,
+        configuration::s2c::Transfer,
         configuration::s2c::FeatureFlags,
         configuration::s2c::UpdateTags,
+        configuration::s2c::ClientboundKnownPacks,
     ],
     c2s[
         configuration::c2s::ClientInformation,
+        configuration::c2s::CookieResponse,
         configuration::c2s::ServerboundPluginMessage,
         configuration::c2s::AcknowledgeFinishConfiguration,
         configuration::c2s::ServerboundKeepAlive,
         configuration::c2s::Pong,
         configuration::c2s::ResourcePackResponse,
+        configuration::c2s::ServerboundKnownPacks,
     ],
 );
 

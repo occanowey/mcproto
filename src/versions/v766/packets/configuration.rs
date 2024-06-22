@@ -1,24 +1,36 @@
 //
 // Clientbound
 //
+
 pub mod s2c {
     use crate::packet::prelude::*;
 
     impl_packets_enum![
+        CookieRequest,
         ClientboundPluginMessage,
         Disconnect,
         FinishConfiguration,
         ClientboundKeepAlive,
         Ping,
+        ResetChat,
         RegistryData,
         RemoveResourcePack,
         AddResourcePack,
+        StoreCookie,
+        Transfer,
         FeatureFlags,
         UpdateTags,
+        ClientboundKnownPacks,
     ];
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x00)]
+    pub struct CookieRequest {
+        pub key: Identifier,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x01)]
     pub struct ClientboundPluginMessage {
         pub channel: Identifier,
         #[packet(with = "remaining_bytes")]
@@ -26,7 +38,7 @@ pub mod s2c {
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x01)]
+    #[packet(id = 0x02)]
     pub struct Disconnect {
         // Text Component (NBT)
         #[packet(with = "length_prefix_bytes")]
@@ -34,99 +46,107 @@ pub mod s2c {
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x02)]
+    #[packet(id = 0x03)]
     pub struct FinishConfiguration;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x03)]
+    #[packet(id = 0x04)]
     pub struct ClientboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x04)]
+    #[packet(id = 0x05)]
     pub struct Ping {
         pub id: i32,
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x05)]
-    pub struct RegistryData {
-        // NBT - https://wiki.vg/Registry_Data
-        #[packet(with = "remaining_bytes")]
-        pub registry_data: Vec<u8>,
-    }
+    #[packet(id = 0x06)]
+    pub struct ResetChat;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x06)]
-    pub struct RemoveResourcePack {
-        // None = remove all
-        // Some(uuid) = remove specific
-        #[packet(with = "bool_option")]
-        pub uuid: Option<Uuid>,
-    }
-
-    #[derive(Debug, Packet)]
     #[packet(id = 0x07)]
-    pub struct AddResourcePack {
-        pub uuid: Uuid,
-        pub url: String,
-        pub hash: String,
-        pub forced: bool,
-        // Text Component (NBT)
-        pub prompt_message: Option<Vec<u8>>,
+    pub struct RegistryData {
+        pub registry_id: Identifier,
+        // #[packet(with = "length_prefix_array")]
+        // pub entries: Vec<registry_data::Entry>,
+
+        // TODO: properly decode entry data
+        #[packet(with = "remaining_bytes")]
+        pub _entries_data: Vec<u8>,
     }
 
-    impl PacketRead for AddResourcePack {
-        fn read_body<B: Buf>(data: &mut B) -> Result<Self, ReadError> {
-            let uuid = Uuid::buf_read(data)?;
-            let url = String::buf_read(data)?;
-            let hash = String::buf_read(data)?;
-            let forced = bool::buf_read(data)?;
+    pub mod registry_data {
+        use crate::types::{BufType, Identifier, ReadError};
 
-            let has_prompt_message = bool::buf_read(data)?;
-            let prompt_message = if has_prompt_message {
-                let prompt_message = length_prefix_bytes::buf_read(data)?;
-                Some(prompt_message)
-            } else {
-                None
-            };
+        #[derive(Debug)]
+        pub struct Entry {
+            pub entry_id: Identifier,
 
-            Ok(AddResourcePack {
-                uuid,
-                url,
-                hash,
-                forced,
-                prompt_message,
-            })
+            // NBT - https://wiki.vg/Registry_Data
+            // length isn't encoded, need to infer from compound close tag?
+            // TODO: properly decode entry data
+            pub data: Option<Vec<u8>>,
         }
-    }
 
-    impl PacketWrite for AddResourcePack {
-        fn write_body<B: BufMut>(&self, buf: &mut B) {
-            self.uuid.buf_write(buf);
-            self.url.buf_write(buf);
-            self.hash.buf_write(buf);
-            self.forced.buf_write(buf);
+        impl BufType for Entry {
+            fn buf_read_len<B: bytes::Buf>(_buf: &mut B) -> Result<(Self, usize), ReadError> {
+                todo!()
+            }
 
-            if let Some(prompt_message) = &self.prompt_message {
-                true.buf_write(buf);
-                length_prefix_bytes::buf_write(prompt_message, buf);
-            } else {
-                false.buf_write(buf);
+            fn buf_write<B: bytes::BufMut>(&self, _buf: &mut B) {
+                todo!()
             }
         }
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x08)]
+    pub struct RemoveResourcePack {
+        // None = remove all
+        // Some(uuid) = remove specific
+        pub uuid: Option<Uuid>,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x09)]
+    pub struct AddResourcePack {
+        pub uuid: Uuid,
+        pub url: String,
+        pub hash: String,
+        pub forced: bool,
+        // Text Component (NBT)
+        #[packet(with = "option_length_prefix_bytes")]
+        pub prompt_message: Option<Vec<u8>>,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x0a)]
+    pub struct StoreCookie {
+        pub key: Identifier,
+        // TODO: check if length is encoded
+        #[packet(with = "remaining_bytes")]
+        pub payload: Vec<u8>,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x0b)]
+    pub struct Transfer {
+        host: String,
+        #[packet(with = "i32_as_v32")]
+        port: i32,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x0c)]
     pub struct FeatureFlags {
         #[packet(with = "length_prefix_array")]
         pub feature_flags: Vec<Identifier>,
     }
 
     #[derive(Debug, Packet)]
-    #[packet(id = 0x09)]
+    #[packet(id = 0x0d)]
     pub struct UpdateTags {
         pub tags: HashMap<Identifier, Vec<update_tags::Tag>>,
     }
@@ -190,21 +210,64 @@ pub mod s2c {
             }
         }
     }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x0e)]
+    pub struct ClientboundKnownPacks {
+        #[packet(with = "length_prefix_array")]
+        pub known_packs: Vec<known_packs::KnownPack>,
+    }
+
+    pub mod known_packs {
+        use crate::types::{BufType, ReadError};
+
+        #[derive(Debug)]
+        pub struct KnownPack {
+            pub namespace: String,
+            pub id: String,
+            pub version: String,
+        }
+
+        impl BufType for KnownPack {
+            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
+                let (namespace, namespace_len) = String::buf_read_len(buf)?;
+                let (id, id_len) = String::buf_read_len(buf)?;
+                let (version, version_len) = String::buf_read_len(buf)?;
+
+                let known_pack = KnownPack {
+                    namespace,
+                    id,
+                    version,
+                };
+
+                Ok((known_pack, namespace_len + id_len + version_len))
+            }
+
+            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
+                self.namespace.buf_write(buf);
+                self.id.buf_write(buf);
+                self.version.buf_write(buf);
+            }
+        }
+    }
 }
 
 //
 // Serverbound
 //
+
 pub mod c2s {
     use crate::packet::prelude::*;
 
     impl_packets_enum![
         ClientInformation,
+        CookieResponse,
         ServerboundPluginMessage,
         AcknowledgeFinishConfiguration,
         ServerboundKeepAlive,
         Pong,
         ResourcePackResponse,
+        ServerboundKnownPacks,
     ];
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
@@ -257,29 +320,29 @@ pub mod c2s {
                 let (mask, size) = u8::buf_read_len(buf)?;
 
                 #[rustfmt::skip]
-            let displayed_skin_parts = DisplayedSkinParts {
-                           cape_enabled: mask & 0b0000001 > 0,
-                         jacket_enabled: mask & 0b0000010 > 0,
-                    left_sleeve_enabled: mask & 0b0000100 > 0,
-                   right_sleeve_enabled: mask & 0b0001000 > 0,
-                 left_pants_leg_enabled: mask & 0b0010000 > 0,
-                right_pants_leg_enabled: mask & 0b0100000 > 0,
-                            hat_enabled: mask & 0b1000000 > 0,
-            };
+                let displayed_skin_parts = DisplayedSkinParts {
+                               cape_enabled: mask & 0b0000001 > 0,
+                             jacket_enabled: mask & 0b0000010 > 0,
+                        left_sleeve_enabled: mask & 0b0000100 > 0,
+                       right_sleeve_enabled: mask & 0b0001000 > 0,
+                     left_pants_leg_enabled: mask & 0b0010000 > 0,
+                    right_pants_leg_enabled: mask & 0b0100000 > 0,
+                                hat_enabled: mask & 0b1000000 > 0,
+                };
 
                 Ok((displayed_skin_parts, size))
             }
 
             fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
                 #[rustfmt::skip]
-            #[allow(clippy::identity_op)]
-            let mask = (self.           cape_enabled as u8) << 0
-                         & (self.         jacket_enabled as u8) << 1
-                         & (self.    left_sleeve_enabled as u8) << 2
-                         & (self.   right_sleeve_enabled as u8) << 3
-                         & (self. left_pants_leg_enabled as u8) << 4
-                         & (self.right_pants_leg_enabled as u8) << 5
-                         & (self.            hat_enabled as u8) << 6;
+                #[allow(clippy::identity_op)]
+                let mask = (self.           cape_enabled as u8) << 0
+                             & (self.         jacket_enabled as u8) << 1
+                             & (self.    left_sleeve_enabled as u8) << 2
+                             & (self.   right_sleeve_enabled as u8) << 3
+                             & (self. left_pants_leg_enabled as u8) << 4
+                             & (self.right_pants_leg_enabled as u8) << 5
+                             & (self.            hat_enabled as u8) << 6;
 
                 mask.buf_write(buf);
             }
@@ -303,6 +366,14 @@ pub mod c2s {
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
     #[packet(id = 0x01)]
+    pub struct CookieResponse {
+        pub key: Identifier,
+        #[packet(with = "option_length_prefix_bytes")]
+        pub payload: Option<Vec<u8>>,
+    }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x02)]
     pub struct ServerboundPluginMessage {
         pub channel: Identifier,
         #[packet(with = "remaining_bytes")]
@@ -310,29 +381,29 @@ pub mod c2s {
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x02)]
+    #[packet(id = 0x03)]
     pub struct AcknowledgeFinishConfiguration;
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x03)]
+    #[packet(id = 0x04)]
     pub struct ServerboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x04)]
+    #[packet(id = 0x05)]
     pub struct Pong {
         pub id: i32,
     }
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x05)]
+    #[packet(id = 0x06)]
     pub struct ResourcePackResponse {
         pub uuid: Uuid,
         pub result: resource_pack_response::Result,
     }
 
-    pub mod resource_pack_response {
+    mod resource_pack_response {
         use crate::types::v32_prefix_enum;
 
         #[derive(Debug)]
@@ -363,4 +434,13 @@ pub mod c2s {
             }
         );
     }
+
+    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[packet(id = 0x07)]
+    pub struct ServerboundKnownPacks {
+        #[packet(with = "length_prefix_array")]
+        pub known_packs: Vec<known_packs::KnownPack>,
+    }
+
+    pub use super::s2c::known_packs;
 }

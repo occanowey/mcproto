@@ -11,8 +11,11 @@ pub enum ForgeHandshake {
     // forge 1.7 - 1.12
     Version1,
 
-    // forge 1.13+
+    // forge 1.13 - ??
     Version2,
+
+    // forge ??
+    Version3,
 }
 
 impl ForgeHandshake {
@@ -25,6 +28,7 @@ impl ForgeHandshake {
             let forge = match fml {
                 "FML\0" => Some(Self::Version1),
                 "FML2\0" => Some(Self::Version2),
+                "FML3\0" => Some(Self::Version3),
 
                 // should definately warn about this somehow
                 _ => None,
@@ -38,6 +42,7 @@ impl ForgeHandshake {
         match self {
             Self::Version1 => "\0FML\0",
             Self::Version2 => "\0FML2\0",
+            Self::Version3 => "\0FML3\0",
         }
     }
 }
@@ -46,6 +51,7 @@ impl ForgeHandshake {
 pub enum NextState {
     Status,
     Login,
+    Transfer,
 
     Unknown(i32),
 }
@@ -55,6 +61,7 @@ v32_prefix_enum!(
     {
         Status = 1,
         Login = 2,
+        Transfer = 3,
     }
 );
 

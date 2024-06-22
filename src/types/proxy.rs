@@ -19,36 +19,6 @@ pub mod i32_as_v32 {
     }
 }
 
-pub mod bool_option {
-    use super::*;
-
-    pub fn buf_read<B: Buf, T: BufType>(buf: &mut B) -> Result<Option<T>> {
-        self::buf_read_len(buf).map(|value| value.0)
-    }
-
-    pub fn buf_read_len<B: Buf, T: BufType>(buf: &mut B) -> Result<(Option<T>, usize)> {
-        let (has_value, mut total_value_len) = bool::buf_read_len(buf)?;
-
-        let value = if has_value {
-            let (value, value_len) = T::buf_read_len(buf)?;
-            total_value_len += value_len;
-            Some(value)
-        } else {
-            None
-        };
-
-        Ok((value, total_value_len))
-    }
-
-    pub fn buf_write<B: BufMut, T: BufType>(value: &Option<T>, buf: &mut B) {
-        value.is_some().buf_write(buf);
-
-        if let Some(value) = value {
-            value.buf_write(buf);
-        }
-    }
-}
-
 pub mod length_prefix_bytes {
     use super::*;
 
@@ -125,5 +95,35 @@ pub mod remaining_bytes {
 
     pub fn buf_write<B: BufMut, BA: AsRef<[u8]>>(bytes: BA, buf: &mut B) {
         buf.put_slice(bytes.as_ref());
+    }
+}
+
+pub mod option_length_prefix_bytes {
+    use super::*;
+
+    pub fn buf_read<B: Buf>(buf: &mut B) -> Result<Option<Vec<u8>>> {
+        self::buf_read_len(buf).map(|value| value.0)
+    }
+
+    pub fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Option<Vec<u8>>, usize)> {
+        let (has_value, mut total_value_len) = bool::buf_read_len(buf)?;
+
+        let value = if has_value {
+            let (value, value_len) = length_prefix_bytes::buf_read_len(buf)?;
+            total_value_len += value_len;
+            Some(value)
+        } else {
+            None
+        };
+
+        Ok((value, total_value_len))
+    }
+
+    pub fn buf_write<B: BufMut, BA: AsRef<[u8]>>(value: &Option<BA>, buf: &mut B) {
+        value.is_some().buf_write(buf);
+
+        if let Some(value) = value {
+            length_prefix_bytes::buf_write(value, buf);
+        }
     }
 }

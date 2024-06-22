@@ -69,7 +69,8 @@ pub(crate) mod prelude {
     pub use super::{Packet, PacketRead, PacketWrite};
     pub use crate::types::{
         proxy::{
-            bool_option, i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes,
+            i32_as_v32, length_prefix_array, length_prefix_bytes, option_length_prefix_bytes,
+            remaining_bytes,
         },
         BufType, Identifier, ReadError,
     };

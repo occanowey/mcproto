@@ -48,7 +48,7 @@ macro_rules! impl_primitive {
     };
 }
 
-fn ensure_remaining<B: Buf>(buf: &B, size: usize) -> Result<()> {
+pub(crate) fn ensure_remaining<B: Buf>(buf: &B, size: usize) -> Result<()> {
     if buf.remaining() < size {
         return Err(ReadError::ReadOutOfBounds(buf.remaining(), size));
     }
@@ -115,7 +115,7 @@ pub enum TextComponent {
 }
 
 impl BufType for TextComponent {
-    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Self, usize)> {
+    fn buf_read_len<B: Buf>(_buf: &mut B) -> Result<(Self, usize)> {
         todo!()
     }
 
@@ -240,6 +240,29 @@ impl BufType for Uuid {
 }
 
 // Optional X
+impl<T: BufType> BufType for Option<T> {
+    fn buf_read_len<B: Buf>(buf: &mut B) -> Result<(Option<T>, usize)> {
+        let (has_value, mut total_value_len) = bool::buf_read_len(buf)?;
+
+        let value = if has_value {
+            let (value, value_len) = T::buf_read_len(buf)?;
+            total_value_len += value_len;
+            Some(value)
+        } else {
+            None
+        };
+
+        Ok((value, total_value_len))
+    }
+
+    fn buf_write<B: BufMut>(&self, buf: &mut B) {
+        self.is_some().buf_write(buf);
+
+        if let Some(value) = self {
+            value.buf_write(buf);
+        }
+    }
+}
 
 // Array of X
 

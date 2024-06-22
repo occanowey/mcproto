@@ -7,7 +7,7 @@ pub mod s2c {
     impl_packets_enum![Disconnect];
 
     #[derive(Debug, Packet, PacketRead, PacketWrite)]
-    #[packet(id = 0x1A)]
+    #[packet(id = 0x1d)]
     pub struct Disconnect {
         pub reason: String,
     }

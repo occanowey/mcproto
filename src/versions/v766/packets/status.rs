@@ -1,6 +1,7 @@
 //
 // Clientbound
 //
+
 pub mod s2c {
     use crate::packet::prelude::*;
 
@@ -22,6 +23,7 @@ pub mod s2c {
 //
 // Serverbound
 //
+
 pub mod c2s {
     use crate::packet::prelude::*;
 
