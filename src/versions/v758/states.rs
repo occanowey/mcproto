@@ -5,13 +5,18 @@ use super::packets::{configuration, handshaking, login, play, status};
 //
 // Handshaking State
 //
-impl_state!(HandshakingState("handshaking"), c2s[handshaking::Handshake]);
+impl_state!(
+    HandshakingState("handshaking"),
+    [StatusState, LoginState],
+    c2s[handshaking::Handshake]
+);
 
 //
 // Status State
 //
 impl_state!(
     StatusState("status"),
+    [],
     s2c[status::StatusResponse, status::PingResponse],
     c2s[status::StatusRequest, status::PingRequest],
 );
@@ -21,6 +26,7 @@ impl_state!(
 //
 impl_state!(
     LoginState("login"),
+    [ConfigurationState],
     s2c[
         login::Disconnect,
         login::EncryptionRequest,
@@ -41,6 +47,7 @@ impl_state!(
 //
 impl_state!(
     ConfigurationState("configuration"),
+    [PlayState],
     s2c[
         configuration::ClientboundPluginMessage,
         configuration::Disconnect,
@@ -66,4 +73,4 @@ impl_state!(
 //
 // Play State
 //
-impl_state!(PlayState("play"), s2c[play::Disconnect]);
+impl_state!(PlayState("play"), [], s2c[play::Disconnect]);

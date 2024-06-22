@@ -7,9 +7,12 @@ use std::{
 
 use mcproto::{
     net::handler_from_stream,
-    versions::v758::packets::{
-        handshaking::{Handshake, NextState},
-        status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
+    versions::v758::{
+        packets::{
+            handshaking::{Handshake, NextState},
+            status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
+        },
+        states,
     },
 };
 
@@ -33,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         forge: None,
     })?;
 
-    let mut handler = handler.status();
+    let mut handler = handler.next_state::<states::StatusState>();
 
     handler.write(StatusRequest)?;
     let response: StatusResponse = handler.read()?;

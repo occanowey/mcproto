@@ -11,6 +11,8 @@ mod sealed {
 
     pub trait SidedStateReadPacket<Side: NetworkSide, State: NetworkState>: PacketRead {}
     pub trait SidedStateWritePacket<Side: NetworkSide, State: NetworkState>: PacketWrite {}
+
+    pub trait NextHandlerState<Current: NetworkState>: NetworkState {}
 }
 
 pub(crate) use self::sealed::*;
@@ -30,11 +32,13 @@ macro_rules! impl_sided_state_packet {
 pub(crate) use impl_sided_state_packet;
 
 macro_rules! impl_state {
-    ($state: ident ($label: expr) $(, $($side: tt [$($packet: ty),* $(,)?]),*)? $(,)?) => {
+    ($state: ident ($label: expr), [$($next_state: ty), *] $(, $($side: tt [$($packet: ty),* $(,)?]),*)? $(,)?) => {
         pub struct $state;
         impl crate::net::state::NetworkState for $state {
             const LABEL: &'static str = $label;
         }
+
+        $(impl crate::net::state::NextHandlerState<$state> for $next_state {})*
 
         $($($(crate::net::state::impl_sided_state_packet!($side, $state, $packet);)*)*)?
     };
