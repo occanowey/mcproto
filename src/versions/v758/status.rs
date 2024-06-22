@@ -1,4 +1,4 @@
-use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use packet_derive::{Packet, PacketRead, PacketWrite};
 
 //

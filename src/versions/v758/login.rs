@@ -1,4 +1,4 @@
-use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::types::{
     proxy::{i32_as_v32, length_prefix_array, length_prefix_bytes, remaining_bytes},
     Identifier,

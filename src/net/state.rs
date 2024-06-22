@@ -1,6 +1,6 @@
 use crate::{
     net::side::{Client, Server},
-    packet::{configuration, handshaking, login, play, status},
+    versions::latest::{configuration, handshaking, login, play, status},
 };
 
 pub trait NetworkState {

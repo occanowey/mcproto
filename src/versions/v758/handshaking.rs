@@ -1,4 +1,4 @@
-use super::{impl_packet_enum, Packet, PacketRead, PacketWrite};
+use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::types::{proxy::i32_as_v32, v32_prefix_enum, BufType, ReadError};
 use bytes::{Buf, BufMut};
 use packet_derive::Packet;

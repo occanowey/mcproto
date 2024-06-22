@@ -1,11 +1,5 @@
 mod builder;
 
-pub mod configuration;
-pub mod handshaking;
-pub mod login;
-pub mod play;
-pub mod status;
-
 use std::io::{Read, Write};
 
 use crate::{
