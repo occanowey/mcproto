@@ -1,15 +1,15 @@
-use crate::net::state::impl_state;
+use crate::{
+    handshake,
+    net::state::{self, impl_state},
+};
 
-use super::packets::{configuration, handshaking, login, play, status};
+use super::packets::{configuration, login, play, status};
 
 //
 // Handshaking State
 //
-impl_state!(
-    HandshakingState("handshaking"),
-    [StatusState, LoginState],
-    c2s[handshaking::Handshake]
-);
+impl state::NextHandlerState<handshake::HandshakingState> for StatusState {}
+impl state::NextHandlerState<handshake::HandshakingState> for LoginState {}
 
 //
 // Status State

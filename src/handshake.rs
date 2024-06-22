@@ -1,3 +1,4 @@
+use crate::net::state::impl_state;
 use crate::packet::{impl_packet_enum, Packet, PacketRead, PacketWrite};
 use crate::types::{proxy::i32_as_v32, v32_prefix_enum, BufType, ReadError};
 use bytes::{Buf, BufMut};
@@ -114,3 +115,5 @@ impl PacketWrite for Handshake {
         self.next_state.buf_write(buf);
     }
 }
+
+impl_state!(HandshakingState("handshaking"), [], c2s[Handshake]);

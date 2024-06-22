@@ -9,15 +9,15 @@ use tracing::{debug, trace};
 use super::encryption::{EncryptableBufReader, EncryptableWriter};
 use super::state::NextHandlerState;
 use crate::error::{Error, Result};
+use crate::handshake;
 use crate::net::side::NetworkSide;
 use crate::net::state::{NetworkState, SidedStateReadPacket, SidedStateWritePacket};
-use crate::versions::latest::states;
 use crate::{varint::VarintReadExt, PacketBuilder};
 
 // would rather this be in network handler but generics makes that difficult if not impossible
 pub fn handler_from_stream<Side: NetworkSide>(
     stream: TcpStream,
-) -> Result<NetworkHandler<Side, states::HandshakingState>> {
+) -> Result<NetworkHandler<Side, handshake::HandshakingState>> {
     let reader = EncryptableBufReader::wrap(stream.try_clone()?);
     let writer = EncryptableWriter::wrap(stream.try_clone()?);
 

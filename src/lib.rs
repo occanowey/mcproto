@@ -6,8 +6,8 @@ pub mod types;
 mod varint;
 
 pub mod packet;
-pub mod versions;
-
 pub use packet::PacketBuilder;
+pub mod handshake;
+pub mod versions;
 
 pub mod net;
