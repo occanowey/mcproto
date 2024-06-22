@@ -6,8 +6,8 @@ use std::{
 };
 
 use mcproto::{
+    handler::handler_from_stream,
     handshake::{Handshake, NextState},
-    net::handler_from_stream,
     versions::latest::{
         packets::status::{PingRequest, PingResponse, StatusRequest, StatusResponse},
         states,

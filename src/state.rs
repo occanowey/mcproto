@@ -5,8 +5,8 @@ pub trait NetworkState {
 mod sealed {
     use super::NetworkState;
     use crate::{
-        net::side::NetworkSide,
         packet::{PacketRead, PacketWrite},
+        side::NetworkSide,
     };
 
     pub trait SidedStateReadPacket<Side: NetworkSide, State: NetworkState>: PacketRead {}
@@ -19,13 +19,13 @@ pub(crate) use self::sealed::*;
 
 macro_rules! impl_sided_state_packet {
     (c2s, $state: ty, $packet: ty) => {
-        impl crate::state::SidedStateReadPacket<crate::net::side::Server, $state> for $packet {}
-        impl crate::state::SidedStateWritePacket<crate::net::side::Client, $state> for $packet {}
+        impl crate::state::SidedStateReadPacket<crate::side::Server, $state> for $packet {}
+        impl crate::state::SidedStateWritePacket<crate::side::Client, $state> for $packet {}
     };
 
     (s2c, $state: ty, $packet: ty) => {
-        impl crate::state::SidedStateWritePacket<crate::net::side::Server, $state> for $packet {}
-        impl crate::state::SidedStateReadPacket<crate::net::side::Client, $state> for $packet {}
+        impl crate::state::SidedStateWritePacket<crate::side::Server, $state> for $packet {}
+        impl crate::state::SidedStateReadPacket<crate::side::Client, $state> for $packet {}
     };
 }
 

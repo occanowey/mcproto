@@ -12,7 +12,7 @@ use tracing::{debug, trace};
 
 use crate::error::{Error, Result};
 use crate::handshake;
-use crate::net::side::NetworkSide;
+use crate::side::NetworkSide;
 use crate::state::{NetworkState, NextHandlerState, SidedStateReadPacket, SidedStateWritePacket};
 use crate::types::proxy::i32_as_v32;
 use crate::types::ReadError;
