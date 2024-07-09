@@ -85,7 +85,6 @@ pub mod c2s {
     pub struct LoginStart {
         pub username: String,
         pub signature_data: Option<login_start::SignatureData>,
-        pub uuid: Option<Uuid>,
     }
 
     pub mod login_start {
@@ -152,16 +151,13 @@ pub mod c2s {
         impl BufType for VerifyTokenOrMessageSignature {
             fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
                 let (has_verify_token, has_verify_token_len) = bool::buf_read_len(buf)?;
-
                 let (verify_token_or_message_signature, vtms_len) = if has_verify_token {
                     let (verify_token, verify_token_len) = length_prefix_bytes::buf_read_len(buf)?;
-
                     (Self::VerifyToken(verify_token), verify_token_len)
                 } else {
                     let (salt, salt_len) = i64::buf_read_len(buf)?;
                     let (message_signature, message_signature_len) =
                         length_prefix_bytes::buf_read_len(buf)?;
-
                     (
                         Self::MessageSignature {
                             salt,
