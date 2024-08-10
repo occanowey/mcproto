@@ -12,23 +12,23 @@ pub mod s2c {
     // 0x00
     pub use super::prev::s2c::Disconnect;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionRequest {
         pub server_id: String,
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub public_key: Vec<u8>,
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub verify_token: Vec<u8>,
     }
 
     // 0x02
     pub use super::prev::s2c::LoginSuccess;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x03)]
     pub struct SetCompression {
-        #[packet(with = "i32_as_v32")]
+        #[buftype(with = "i32_as_v32")]
         pub threshold: i32,
     }
 }
@@ -45,12 +45,12 @@ pub mod c2s {
     // 0x00
     pub use super::prev::c2s::LoginStart;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub shared_secret: Vec<u8>,
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub verify_token: Vec<u8>,
     }
 }

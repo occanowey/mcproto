@@ -17,61 +17,61 @@ pub mod s2c {
         UpdateTags,
     ];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct ClientboundPluginMessage {
         pub channel: Identifier,
-        #[packet(with = "remaining_bytes")]
+        #[buftype(with = "remaining_bytes")]
         pub data: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct Disconnect {
         // Text Component (NBT)
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub reason: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct FinishConfiguration;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x03)]
     pub struct ClientboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x04)]
     pub struct Ping {
         pub id: i32,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x05)]
     pub struct RegistryData {
         // TODO: properly decode?
-        #[packet(with = "remaining_bytes")]
+        #[buftype(with = "remaining_bytes")]
         pub registry_codec: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x06)]
     pub struct ResourcePack {
         pub url: String,
         pub hash: String,
         pub forced: bool,
         // Text Component (NBT)
-        #[packet(with = "option_length_prefix_bytes")]
+        #[buftype(with = "option_length_prefix_bytes")]
         pub prompt_message: Option<Vec<u8>>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x07)]
     pub struct FeatureFlags {
-        #[packet(with = "length_prefix_array")]
+        #[buftype(with = "length_prefix_array")]
         pub feature_flags: Vec<Identifier>,
     }
 
@@ -158,7 +158,7 @@ pub mod c2s {
         ResourcePackResponse,
     ];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct ClientInformation {
         pub locale: String,
@@ -252,31 +252,31 @@ pub mod c2s {
         );
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct ServerboundPluginMessage {
         pub channel: Identifier,
-        #[packet(with = "remaining_bytes")]
+        #[buftype(with = "remaining_bytes")]
         pub data: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct FinishConfiguration;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x03)]
     pub struct ServerboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x04)]
     pub struct Pong {
         pub id: i32,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x05)]
     pub struct ResourcePackResponse {
         pub uuid: Uuid,

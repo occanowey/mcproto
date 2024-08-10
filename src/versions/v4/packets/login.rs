@@ -7,24 +7,24 @@ pub mod s2c {
 
     impl_packets_enum![Disconnect, EncryptionRequest, LoginSuccess];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct Disconnect {
         // JSON
         pub reason: String,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionRequest {
         pub server_id: String,
-        #[packet(with = "u16_length_prefix_bytes")]
+        #[buftype(with = "u16_length_prefix_bytes")]
         pub public_key: Vec<u8>,
-        #[packet(with = "u16_length_prefix_bytes")]
+        #[buftype(with = "u16_length_prefix_bytes")]
         pub verify_token: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: String,
@@ -41,18 +41,18 @@ pub mod c2s {
 
     impl_packets_enum![LoginStart, EncryptionResponse];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct LoginStart {
         pub username: String,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
-        #[packet(with = "u16_length_prefix_bytes")]
+        #[buftype(with = "u16_length_prefix_bytes")]
         pub shared_secret: Vec<u8>,
-        #[packet(with = "u16_length_prefix_bytes")]
+        #[buftype(with = "u16_length_prefix_bytes")]
         pub verify_token: Vec<u8>,
     }
 }

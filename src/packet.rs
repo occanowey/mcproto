@@ -1,4 +1,4 @@
-use crate::types::ReadError;
+use crate::types::{BufType, ReadError};
 use bytes::{Buf, BufMut, Bytes};
 
 pub trait Packet {
@@ -12,6 +12,24 @@ pub trait PacketRead: Packet + Sized {
 
 pub trait PacketWrite: Packet {
     fn write_body<B: BufMut>(&self, buf: &mut B);
+}
+
+impl<P: Packet> PacketRead for P
+where
+    P: BufType,
+{
+    fn read_body<B: Buf>(data: &mut B) -> std::result::Result<Self, ReadError> {
+        Self::buf_read_len(data).map(|__self| __self.0)
+    }
+}
+
+impl<P: Packet> PacketWrite for P
+where
+    P: BufType,
+{
+    fn write_body<B: BufMut>(&self, buf: &mut B) {
+        self.buf_write(buf)
+    }
 }
 
 pub trait PacketFromIdBody {
@@ -75,7 +93,7 @@ pub(crate) mod prelude {
         BufType, Identifier, ReadError,
     };
     pub use bytes::{Buf, BufMut};
-    pub use packet_derive::{BufPacket, Packet};
+    pub use packet_derive::{BufType, Packet};
     pub use std::collections::HashMap;
     pub use uuid::Uuid;
 

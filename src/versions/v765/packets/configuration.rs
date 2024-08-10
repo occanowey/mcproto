@@ -38,7 +38,7 @@ pub mod s2c {
     // 0x05
     pub use super::prev::s2c::RegistryData;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x06)]
     pub struct RemoveResourcePack {
         // None = remove all
@@ -46,7 +46,7 @@ pub mod s2c {
         pub uuid: Option<Uuid>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x07)]
     pub struct AddResourcePack {
         pub uuid: Uuid,
@@ -54,14 +54,14 @@ pub mod s2c {
         pub hash: String,
         pub forced: bool,
         // Text Component (NBT)
-        #[packet(with = "option_length_prefix_bytes")]
+        #[buftype(with = "option_length_prefix_bytes")]
         pub prompt_message: Option<Vec<u8>>,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x08)]
     pub struct FeatureFlags {
-        #[packet(with = "length_prefix_array")]
+        #[buftype(with = "length_prefix_array")]
         pub feature_flags: Vec<Identifier>,
     }
 
@@ -163,7 +163,7 @@ pub mod c2s {
     // 0x04
     pub use super::prev::c2s::Pong;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x06)]
     pub struct ResourcePackResponse {
         pub uuid: Uuid,

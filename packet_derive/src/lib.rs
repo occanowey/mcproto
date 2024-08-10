@@ -33,8 +33,8 @@ pub fn packet(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[derive(Debug, FromField)]
-#[darling(attributes(packet))]
-struct BufPacketFieldReceiver {
+#[darling(attributes(buftype))]
+struct BufTypeFieldReceiver {
     ident: Option<syn::Ident>,
     ty: syn::Type,
 
@@ -46,22 +46,22 @@ struct BufPacketFieldReceiver {
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(supports(struct_any))]
-struct BufPacketReceiver {
+struct BufTypeReceiver {
     ident: syn::Ident,
     generics: syn::Generics,
 
-    data: darling::ast::Data<(), BufPacketFieldReceiver>,
+    data: darling::ast::Data<(), BufTypeFieldReceiver>,
 }
 
-#[proc_macro_derive(BufPacket, attributes(packet))]
+#[proc_macro_derive(BufType, attributes(buftype))]
 pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let BufPacketReceiver {
+    let BufTypeReceiver {
         ident,
         generics,
         data,
-    } = BufPacketReceiver::from_derive_input(&input).unwrap();
+    } = BufTypeReceiver::from_derive_input(&input).unwrap();
 
     let (r#impl, ty, r#where) = generics.split_for_impl();
     let r#struct = data.take_struct().unwrap();
@@ -145,20 +145,6 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             fn buf_write<B: BufMut>(&self, __buf: &mut B) {
                 #(#field_write_impls)*
-            }
-        }
-
-        #[automatically_derived]
-        impl #r#impl PacketRead for #ident #ty #r#where {
-            fn read_body<__B: ::bytes::Buf>(__buf: &mut __B) -> std::result::Result<Self, crate::types::ReadError> {
-                Self::buf_read_len(__buf).map(|__self| __self.0)
-            }
-        }
-
-        #[automatically_derived]
-        impl #r#impl PacketWrite for #ident #ty #r#where {
-            fn write_body<__B: bytes::BufMut>(&self, __buf: &mut __B) {
-                self.buf_write(__buf)
             }
         }
     })

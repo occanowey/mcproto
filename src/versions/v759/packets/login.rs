@@ -21,12 +21,12 @@ pub mod s2c {
     // 0x01
     pub use super::prev::s2c::EncryptionRequest;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: Uuid,
         pub username: String,
-        #[packet(with = "length_prefix_array")]
+        #[buftype(with = "length_prefix_array")]
         pub properties: Vec<login_success::Property>,
     }
 
@@ -80,7 +80,7 @@ pub mod c2s {
 
     impl_packets_enum![LoginStart, EncryptionResponse, LoginPluginResponse];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct LoginStart {
         pub username: String,
@@ -126,10 +126,10 @@ pub mod c2s {
     }
 
     // 0x01
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub shared_secret: Vec<u8>,
         pub verify_token_or_message_signature: encryption_response::VerifyTokenOrMessageSignature,
     }

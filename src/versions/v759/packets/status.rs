@@ -7,13 +7,13 @@ pub mod s2c {
 
     impl_packets_enum![StatusResponse, PingResponse];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct StatusResponse {
         pub response: String,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct PingResponse {
         pub payload: i64,
@@ -29,11 +29,11 @@ pub mod c2s {
 
     impl_packets_enum![StatusRequest, PingRequest];
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x00)]
     pub struct StatusRequest;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct PingRequest {
         pub payload: i64,

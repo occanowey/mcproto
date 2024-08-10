@@ -19,23 +19,23 @@ pub mod s2c {
     // 0x00
     pub use super::prev::s2c::Disconnect;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x01)]
     pub struct EncryptionRequest {
         pub server_id: String,
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub public_key: Vec<u8>,
-        #[packet(with = "length_prefix_bytes")]
+        #[buftype(with = "length_prefix_bytes")]
         pub verify_token: Vec<u8>,
         pub should_authenticate: bool,
     }
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: Uuid,
         pub username: String,
-        #[packet(with = "length_prefix_array")]
+        #[buftype(with = "length_prefix_array")]
         pub properties: Vec<login_success::Property>,
         pub strict_error_handling: bool,
     }
@@ -48,7 +48,7 @@ pub mod s2c {
     // 0x04
     pub use super::prev::s2c::LoginPluginRequest;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x05)]
     pub struct CookieRequest {
         pub key: Identifier,
@@ -82,11 +82,11 @@ pub mod c2s {
     // 0x03
     pub use super::prev::c2s::LoginAcknowledged;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x04)]
     pub struct CookieResponse {
         pub key: Identifier,
-        #[packet(with = "option_length_prefix_bytes")]
+        #[buftype(with = "option_length_prefix_bytes")]
         pub payload: Option<Vec<u8>>,
     }
 }

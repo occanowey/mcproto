@@ -27,12 +27,12 @@ pub mod s2c {
     // 0x03
     pub use super::prev::s2c::SetCompression;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x04)]
     pub struct LoginPluginRequest {
         pub message_id: i32,
         pub channel: Identifier,
-        #[packet(with = "remaining_bytes")]
+        #[buftype(with = "remaining_bytes")]
         pub data: Vec<u8>,
     }
 }
@@ -52,13 +52,13 @@ pub mod c2s {
     // 0x01
     pub use super::prev::c2s::EncryptionResponse;
 
-    #[derive(Debug, Packet, BufPacket)]
+    #[derive(Debug, Packet, BufType)]
     #[packet(id = 0x02)]
     pub struct LoginPluginResponse {
-        #[packet(with = "i32_as_v32")]
+        #[buftype(with = "i32_as_v32")]
         pub message_id: i32,
         pub successful: bool,
-        #[packet(with = "remaining_bytes")]
+        #[buftype(with = "remaining_bytes")]
         pub data: Vec<u8>,
     }
 }
