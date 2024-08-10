@@ -21,7 +21,7 @@ pub mod s2c {
     // 0x01
     pub use super::prev::s2c::EncryptionRequest;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: Uuid,
@@ -80,7 +80,7 @@ pub mod c2s {
 
     impl_packets_enum![LoginStart, EncryptionResponse, LoginPluginResponse];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x00)]
     pub struct LoginStart {
         pub username: String,
@@ -126,7 +126,7 @@ pub mod c2s {
     }
 
     // 0x01
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
         #[packet(with = "length_prefix_bytes")]

@@ -15,7 +15,7 @@ pub mod c2s {
 
     impl_packets_enum![LoginStart, EncryptionResponse, LoginPluginResponse];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x00)]
     pub struct LoginStart {
         pub username: String,
@@ -23,7 +23,7 @@ pub mod c2s {
     }
 
     // 0x01
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
         #[packet(with = "length_prefix_bytes")]

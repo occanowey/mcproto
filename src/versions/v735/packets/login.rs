@@ -21,7 +21,7 @@ pub mod s2c {
     // 0x01
     pub use super::prev::s2c::EncryptionRequest;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: Uuid,

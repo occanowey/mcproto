@@ -75,7 +75,7 @@ pub(crate) mod prelude {
         BufType, Identifier, ReadError,
     };
     pub use bytes::{Buf, BufMut};
-    pub use packet_derive::{Packet, PacketRead, PacketWrite};
+    pub use packet_derive::{BufPacket, Packet};
     pub use std::collections::HashMap;
     pub use uuid::Uuid;
 

@@ -25,13 +25,13 @@ pub mod s2c {
         ClientboundKnownPacks,
     ];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x00)]
     pub struct CookieRequest {
         pub key: Identifier,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct ClientboundPluginMessage {
         pub channel: Identifier,
@@ -39,7 +39,7 @@ pub mod s2c {
         pub data: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x02)]
     pub struct Disconnect {
         // Text Component (NBT)
@@ -47,27 +47,27 @@ pub mod s2c {
         pub reason: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x03)]
     pub struct FinishConfiguration;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x04)]
     pub struct ClientboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x05)]
     pub struct Ping {
         pub id: i32,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x06)]
     pub struct ResetChat;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x07)]
     pub struct RegistryData {
         pub registry_id: Identifier,
@@ -103,7 +103,7 @@ pub mod s2c {
         }
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x08)]
     pub struct RemoveResourcePack {
         // None = remove all
@@ -111,7 +111,7 @@ pub mod s2c {
         pub uuid: Option<Uuid>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x09)]
     pub struct AddResourcePack {
         pub uuid: Uuid,
@@ -123,7 +123,7 @@ pub mod s2c {
         pub prompt_message: Option<Vec<u8>>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x0a)]
     pub struct StoreCookie {
         pub key: Identifier,
@@ -132,7 +132,7 @@ pub mod s2c {
         pub payload: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x0b)]
     pub struct Transfer {
         host: String,
@@ -140,7 +140,7 @@ pub mod s2c {
         port: i32,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x0c)]
     pub struct FeatureFlags {
         #[packet(with = "length_prefix_array")]
@@ -184,7 +184,7 @@ pub mod s2c {
         }
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x0e)]
     pub struct ClientboundKnownPacks {
         #[packet(with = "length_prefix_array")]
@@ -246,7 +246,7 @@ pub mod c2s {
     // 0x00
     pub use super::prev::c2s::{client_information, ClientInformation};
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct CookieResponse {
         pub key: Identifier,
@@ -254,7 +254,7 @@ pub mod c2s {
         pub payload: Option<Vec<u8>>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x02)]
     pub struct ServerboundPluginMessage {
         pub channel: Identifier,
@@ -262,23 +262,23 @@ pub mod c2s {
         pub data: Vec<u8>,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x03)]
     pub struct AcknowledgeFinishConfiguration;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x04)]
     pub struct ServerboundKeepAlive {
         pub keep_alive_id: i64,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x05)]
     pub struct Pong {
         pub id: i32,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x06)]
     pub struct ResourcePackResponse {
         pub uuid: Uuid,
@@ -317,7 +317,7 @@ pub mod c2s {
         );
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x07)]
     pub struct ServerboundKnownPacks {
         #[packet(with = "length_prefix_array")]

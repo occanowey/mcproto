@@ -72,7 +72,7 @@ pub mod s2c {
     // 0x0e
     pub use super::prev::s2c::{known_packs, ClientboundKnownPacks};
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x0f)]
     pub struct CustomReportDetails {
         #[packet(with = "length_prefix_array")]
@@ -104,7 +104,7 @@ pub mod s2c {
         }
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x10)]
     pub struct ServerLinks {
         #[packet(with = "length_prefix_array")]

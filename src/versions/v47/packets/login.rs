@@ -12,7 +12,7 @@ pub mod s2c {
     // 0x00
     pub use super::prev::s2c::Disconnect;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct EncryptionRequest {
         pub server_id: String,
@@ -25,7 +25,7 @@ pub mod s2c {
     // 0x02
     pub use super::prev::s2c::LoginSuccess;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x03)]
     pub struct SetCompression {
         #[packet(with = "i32_as_v32")]
@@ -45,7 +45,7 @@ pub mod c2s {
     // 0x00
     pub use super::prev::c2s::LoginStart;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct EncryptionResponse {
         #[packet(with = "length_prefix_bytes")]

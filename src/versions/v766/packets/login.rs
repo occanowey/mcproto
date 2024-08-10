@@ -19,7 +19,7 @@ pub mod s2c {
     // 0x00
     pub use super::prev::s2c::Disconnect;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x01)]
     pub struct EncryptionRequest {
         pub server_id: String,
@@ -30,7 +30,7 @@ pub mod s2c {
         pub should_authenticate: bool,
     }
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x02)]
     pub struct LoginSuccess {
         pub uuid: Uuid,
@@ -48,7 +48,7 @@ pub mod s2c {
     // 0x04
     pub use super::prev::s2c::LoginPluginRequest;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x05)]
     pub struct CookieRequest {
         pub key: Identifier,
@@ -82,7 +82,7 @@ pub mod c2s {
     // 0x03
     pub use super::prev::c2s::LoginAcknowledged;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x04)]
     pub struct CookieResponse {
         pub key: Identifier,

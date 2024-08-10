@@ -20,7 +20,7 @@ pub mod c2s {
         LoginAcknowledged
     ];
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x00)]
     pub struct LoginStart {
         pub username: String,
@@ -33,7 +33,7 @@ pub mod c2s {
     // 0x02
     pub use super::prev::c2s::LoginPluginResponse;
 
-    #[derive(Debug, Packet, PacketRead, PacketWrite)]
+    #[derive(Debug, Packet, BufPacket)]
     #[packet(id = 0x03)]
     pub struct LoginAcknowledged;
 }
