@@ -85,7 +85,7 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let read_with = field.read_with.or_else(|| {
             field.with.clone().map(|mut path| {
                 path.segments
-                    .push(syn::Ident::new("buf_read", Span::call_site()).into());
+                    .push(syn::Ident::new("buf_read_len", Span::call_site()).into());
 
                 path
             })
@@ -103,7 +103,7 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let read_impl = if let Some(read_with) = read_with {
             quote! { #read_with(__buf) }
         } else {
-            quote! { <#field_type as crate::types::BufType>::buf_read(__buf) }
+            quote! { <#field_type as crate::types::BufType>::buf_read_len(__buf) }
         };
 
         let write_impl = if let Some(write_with) = write_with {
@@ -114,7 +114,13 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         (
             value_ident.clone(),
-            (quote! { let #value_ident = #read_impl?; }, write_impl),
+            (
+                quote! {
+                    let (#value_ident, __value_length) = #read_impl?;
+                    __length += __value_length;
+                },
+                write_impl,
+            ),
         )
     });
 
@@ -130,17 +136,29 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
+        impl #r#impl BufType for #ident #ty #r#where {
+            fn buf_read_len<B: Buf>(__buf: &mut B) -> Result<(Self, usize), ReadError> {
+                let mut __length = 0;
+                #(#field_read_impls)*
+                Ok((#struct_create_impl, __length))
+            }
+
+            fn buf_write<B: BufMut>(&self, __buf: &mut B) {
+                #(#field_write_impls)*
+            }
+        }
+
+        #[automatically_derived]
         impl #r#impl PacketRead for #ident #ty #r#where {
             fn read_body<__B: ::bytes::Buf>(__buf: &mut __B) -> std::result::Result<Self, crate::types::ReadError> {
-                #(#field_read_impls)*
-                Ok(#struct_create_impl)
+                Self::buf_read_len(__buf).map(|__self| __self.0)
             }
         }
 
         #[automatically_derived]
         impl #r#impl PacketWrite for #ident #ty #r#where {
             fn write_body<__B: bytes::BufMut>(&self, __buf: &mut __B) {
-                #(#field_write_impls)*
+                self.buf_write(__buf)
             }
         }
     })
