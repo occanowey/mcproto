@@ -192,35 +192,13 @@ pub mod s2c {
     }
 
     pub mod known_packs {
-        use crate::types::{BufType, ReadError};
+        use crate::packet::prelude::*;
 
-        #[derive(Debug)]
+        #[derive(Debug, BufType)]
         pub struct KnownPack {
             pub namespace: String,
             pub id: String,
             pub version: String,
-        }
-
-        impl BufType for KnownPack {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (namespace, namespace_len) = String::buf_read_len(buf)?;
-                let (id, id_len) = String::buf_read_len(buf)?;
-                let (version, version_len) = String::buf_read_len(buf)?;
-
-                let known_pack = KnownPack {
-                    namespace,
-                    id,
-                    version,
-                };
-
-                Ok((known_pack, namespace_len + id_len + version_len))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.namespace.buf_write(buf);
-                self.id.buf_write(buf);
-                self.version.buf_write(buf);
-            }
         }
     }
 }

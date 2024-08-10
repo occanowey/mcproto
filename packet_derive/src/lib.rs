@@ -137,13 +137,13 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl BufType for #ident #ty #r#where {
-            fn buf_read_len<B: Buf>(__buf: &mut B) -> Result<(Self, usize), ReadError> {
+            fn buf_read_len<B: ::bytes::Buf>(__buf: &mut B) -> Result<(Self, usize), crate::types::ReadError> {
                 let mut __length = 0;
                 #(#field_read_impls)*
                 Ok((#struct_create_impl, __length))
             }
 
-            fn buf_write<B: BufMut>(&self, __buf: &mut B) {
+            fn buf_write<B: ::bytes::BufMut>(&self, __buf: &mut B) {
                 #(#field_write_impls)*
             }
         }

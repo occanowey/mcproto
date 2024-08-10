@@ -80,27 +80,12 @@ pub mod s2c {
     }
 
     pub mod custom_report_details {
-        use crate::types::{BufType, ReadError};
+        use crate::packet::prelude::*;
 
-        #[derive(Debug)]
+        #[derive(Debug, BufType)]
         pub struct Detail {
             pub title: String,
             pub description: String,
-        }
-
-        impl BufType for Detail {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (title, title_len) = String::buf_read_len(buf)?;
-                let (description, description_len) = String::buf_read_len(buf)?;
-
-                let detail = Detail { title, description };
-                Ok((detail, title_len + description_len))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.title.buf_write(buf);
-                self.description.buf_write(buf);
-            }
         }
     }
 
@@ -112,9 +97,7 @@ pub mod s2c {
     }
 
     pub mod server_links {
-        use crate::types::{BufType, ReadError};
-
-        use super::i32_as_v32;
+        use crate::packet::prelude::*;
 
         #[derive(Debug)]
         pub enum ServerLinkLabel {
@@ -132,13 +115,13 @@ pub mod s2c {
             Custom(String),
         }
 
-        #[derive(Debug)]
+        #[derive(Debug, BufType)]
         pub struct ServerLink {
             pub label: ServerLinkLabel,
             pub url: String,
         }
 
-        impl BufType for ServerLink {
+        impl BufType for ServerLinkLabel {
             fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
                 let (is_built_in, is_built_in_len) = bool::buf_read_len(buf)?;
                 let (label, label_len) = if is_built_in {
@@ -164,14 +147,11 @@ pub mod s2c {
                     (ServerLinkLabel::Custom(label), label_len)
                 };
 
-                let (url, url_len) = String::buf_read_len(buf)?;
-
-                let server_link = ServerLink { label, url };
-                Ok((server_link, is_built_in_len + label_len + url_len))
+                Ok((label, is_built_in_len + label_len))
             }
 
             fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                match &self.label {
+                match &self {
                     ServerLinkLabel::Custom(label) => {
                         bool::buf_write(&false, buf);
                         label.buf_write(buf);

@@ -31,36 +31,13 @@ pub mod s2c {
     }
 
     pub mod login_success {
-        use crate::types::BufType;
-        use crate::types::ReadError;
+        use crate::packet::prelude::*;
 
-        #[derive(Debug)]
+        #[derive(Debug, BufType)]
         pub struct Property {
             pub name: String,
             pub value: String,
             pub signature: Option<String>,
-        }
-
-        impl BufType for Property {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (name, name_len) = String::buf_read_len(buf)?;
-                let (value, value_len) = String::buf_read_len(buf)?;
-                let (signature, signature_len) = Option::buf_read_len(buf)?;
-
-                let property = Property {
-                    name,
-                    value,
-                    signature,
-                };
-
-                Ok((property, name_len + value_len + signature_len))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.name.buf_write(buf);
-                self.value.buf_write(buf);
-                self.signature.buf_write(buf);
-            }
         }
     }
 
@@ -89,39 +66,14 @@ pub mod c2s {
 
     pub mod login_start {
         use crate::packet::prelude::*;
-        use crate::types::BufType;
-        use crate::types::ReadError;
 
-        #[derive(Debug)]
+        #[derive(Debug, BufType)]
         pub struct SignatureData {
             pub timestamp: i64,
+            #[buftype(with = "length_prefix_bytes")]
             pub public_key: Vec<u8>,
+            #[buftype(with = "length_prefix_bytes")]
             pub signature: Vec<u8>,
-        }
-
-        impl BufType for SignatureData {
-            fn buf_read_len<B: bytes::Buf>(buf: &mut B) -> Result<(Self, usize), ReadError> {
-                let (timestamp, timestamp_len) = i64::buf_read_len(buf)?;
-                let (public_key, public_key_len) = length_prefix_bytes::buf_read_len(buf)?;
-                let (signature, signature_len) = length_prefix_bytes::buf_read_len(buf)?;
-
-                let signature_data = SignatureData {
-                    timestamp,
-                    public_key,
-                    signature,
-                };
-
-                Ok((
-                    signature_data,
-                    timestamp_len + public_key_len + signature_len,
-                ))
-            }
-
-            fn buf_write<B: bytes::BufMut>(&self, buf: &mut B) {
-                self.timestamp.buf_write(buf);
-                length_prefix_bytes::buf_write(&self.public_key, buf);
-                length_prefix_bytes::buf_write(&self.signature, buf);
-            }
         }
     }
 
@@ -136,8 +88,6 @@ pub mod c2s {
 
     pub mod encryption_response {
         use crate::packet::prelude::*;
-        use crate::types::BufType;
-        use crate::types::ReadError;
 
         #[derive(Debug)]
         pub enum VerifyTokenOrMessageSignature {
