@@ -3,7 +3,7 @@ use std::{env, error::Error, net::ToSocketAddrs, time::Instant};
 use mcproto::{
     handshake::{Handshake, NextState},
     role,
-    sio::{self, StdIoConnection},
+    stdio::{self, StdIoConnection},
     versions::latest::{
         packets::status::{
             c2s::{PingRequest, StatusRequest},
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .next()
         .unwrap();
 
-    let mut connection: StdIoConnection<role::Client, _> = sio::connect_stdio_stream(address)?;
+    let mut connection: StdIoConnection<role::Client, _> = stdio::connect_stdio_stream(address)?;
 
     connection.write_packet(Handshake {
         protocol_version: 110,

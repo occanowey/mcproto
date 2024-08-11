@@ -19,3 +19,11 @@ crypto-common = "0.1.6"
 aes = "0.8.4"
 cfb8 = "=0.8.1"
 bytes = "1.6.0"
+
+[features]
+tokio = ["dep:tokio"]
+
+[dependencies.tokio]
+optional = true
+version = "1.39.1"
+features = ["io-util", "net"]
