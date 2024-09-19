@@ -1,10 +1,9 @@
 #![cfg_attr(any(), rustfmt::skip)]
-// generated with `cargo run --bin gen_versions > src/proto/version/mod.rs`
+// generated with `cargo run --bin gen_versions > src/versions/mod.rs`
+// TODO: play state?
 
 /// for minecraft versions: 1.7 & 1.7.1
-// TODO: need o look at old mc source as the wiki is missing this?
-// TODO: play state?
-// pub mod v3;
+pub mod v3;
 /// for minecraft versions: 1.7.2, 1.7.3, 1.7.4 & 1.7.5
 pub mod v4;
 /// for minecraft versions: 1.7.6, 1.7.7, 1.7.8, 1.7.9 & 1.7.10
@@ -91,7 +90,7 @@ pub mod v764;
 pub mod v765;
 /// for minecraft versions: 1.20.5 & 1.20.6
 pub mod v766;
-/// for minecraft versions: 1.21
+/// for minecraft versions: 1.21 & 1.21.1
 pub mod v767;
 
 pub use v767 as latest;

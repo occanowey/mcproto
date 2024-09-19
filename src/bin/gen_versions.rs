@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 
 fn main() {
     println!("#![cfg_attr(any(), rustfmt::skip)]");
-    println!("// generated with `cargo run --bin gen_versions > src/proto/version/mod.rs`\n");
+    println!("// generated with `cargo run --bin gen_versions > src/versions/mod.rs`\n");
 
     let versions = [
+        ("1.21.1", 767),
         ("1.21", 767),
         ("1.20.6", 766),
         ("1.20.5", 766),
