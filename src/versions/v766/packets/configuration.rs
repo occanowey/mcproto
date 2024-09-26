@@ -263,7 +263,7 @@ pub mod c2s {
         pub result: resource_pack_response::Result,
     }
 
-    mod resource_pack_response {
+    pub mod resource_pack_response {
         use crate::types::v32_prefix_enum;
 
         #[derive(Debug)]
