@@ -16,33 +16,34 @@ pub enum ForgeHandshake {
 
     // forge ??
     Version3,
+
+    Other(String),
 }
 
 impl ForgeHandshake {
-    fn separate_address(address: String) -> (String, Option<Self>) {
-        if !address.contains('\0') {
-            (address, None)
-        } else {
-            let (address, fml) = address.split_once('\0').unwrap();
+    fn separate_address(full_address: String) -> (String, Option<Self>) {
+        let (address, version) = full_address.split_once('\0').unzip();
 
-            let forge = match fml {
-                "FML\0" => Some(Self::Version1),
-                "FML2\0" => Some(Self::Version2),
-                "FML3\0" => Some(Self::Version3),
+        let version = version.map(|v| match v {
+            "FML\0" => Self::Version1,
+            "FML2\0" => Self::Version2,
+            "FML3\0" => Self::Version3,
 
-                // should definately warn about this somehow
-                _ => None,
-            };
+            other => Self::Other(other.to_owned()),
+        });
 
-            (address.to_owned(), forge)
-        }
+        let address = address.map(ToOwned::to_owned).unwrap_or(full_address);
+
+        (address, version)
     }
 
     fn net_id(&self) -> &str {
         match self {
-            Self::Version1 => "\0FML\0",
-            Self::Version2 => "\0FML2\0",
-            Self::Version3 => "\0FML3\0",
+            Self::Version1 => "FML\0",
+            Self::Version2 => "FML2\0",
+            Self::Version3 => "FML3\0",
+
+            Self::Other(other) => other.as_str(),
         }
     }
 }
@@ -78,11 +79,13 @@ pub struct Handshake {
 
 impl Handshake {
     fn modified_address(&self) -> String {
-        format!(
-            "{}{}",
-            self.server_address,
-            self.forge.as_ref().map_or("", |f| f.net_id()),
-        )
+        let mut address = self.server_address.clone();
+        if let Some(forge) = &self.forge {
+            address.push('\0');
+            address.push_str(forge.net_id());
+        }
+
+        address
     }
 }
 
