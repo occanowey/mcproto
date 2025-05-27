@@ -84,6 +84,8 @@ pub(crate) use impl_packets_enum;
 
 #[allow(unused_imports)]
 pub(crate) mod prelude {
+    pub use crate as mcproto;
+
     pub use super::{Packet, PacketRead, PacketWrite};
     pub use crate::types::{
         proxy::{

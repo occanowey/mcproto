@@ -103,13 +103,13 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let read_impl = if let Some(read_with) = read_with {
             quote! { #read_with(__buf) }
         } else {
-            quote! { <#field_type as crate::types::BufType>::buf_read_len(__buf) }
+            quote! { <#field_type as mcproto::types::BufType>::buf_read_len(__buf) }
         };
 
         let write_impl = if let Some(write_with) = write_with {
             quote! { #write_with(&#self_field_ident, __buf); }
         } else {
-            quote! { crate::types::BufType::buf_write(&#self_field_ident, __buf); }
+            quote! { mcproto::types::BufType::buf_write(&#self_field_ident, __buf); }
         };
 
         (
@@ -137,7 +137,7 @@ pub fn buf_type(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(quote! {
         #[automatically_derived]
         impl #r#impl BufType for #ident #ty #r#where {
-            fn buf_read_len<B: ::bytes::Buf>(__buf: &mut B) -> Result<(Self, usize), crate::types::ReadError> {
+            fn buf_read_len<B: ::bytes::Buf>(__buf: &mut B) -> Result<(Self, usize), mcproto::types::ReadError> {
                 let mut __length = 0;
                 #(#field_read_impls)*
                 Ok((#struct_create_impl, __length))

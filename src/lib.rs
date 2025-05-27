@@ -1,3 +1,4 @@
+pub use packet_derive;
 pub use uuid;
 
 pub mod role {
